@@ -1,6 +1,7 @@
 import streamlit as st
 import random
 import re
+import time
 
 # 設定網頁標題與圖示
 st.set_page_config(page_title="門市食材配方考核系統", page_icon="🍕", layout="centered")
@@ -21,7 +22,7 @@ ALL_INGREDIENTS = [
     "牛肉丸", "甜不辣", "番茄", "章魚", "培根", "蛤蜊肉", 
     "起司", "費城牛肉", "韓國泡菜", "韓國烤肉餡", "韓式燒牛肉", "韓式豬五花", 
     "韭菜", "魷魚圈", "鱈魚片", "火腿", "豬義混", "青椒", "黑胡椒牛柳", 
-    "菠菜", "鳳梨", "蟹肉絲", "花枝調味粉","花枝條"
+    "菠菜", "鳳梨", "蟹肉絲", "花枝調味粉"
 ]
 
 ALL_QUANTITIES = [
@@ -43,7 +44,7 @@ RECIPES = [
         {"n": "起司", "q": "1", "g": ""}, {"n": "洋蔥", "q": "1/2", "g": ""}, {"n": "青椒", "q": "1/2", "g": ""}, {"n": "甜不辣", "q": "1/2", "g": ""}, {"n": "章魚", "q": "1", "g": ""}, {"n": "起司", "q": "1", "g": ""}
     ]},
     {"name": "經典海鮮四重奏", "sauce": "Pizza Sauce 1平杓", "ingredients": [
-        {"n": "起司", "q": "1/2", "g": ""}, {"n": "蟹肉絲", "q": "2", "g": ""}, {"n": "花枝條", "q": "1/2", "g": ""}, {"n": "小蝦", "q": "1/2", "g": ""}, {"n": "蛤蜊肉", "q": "1/2", "g": ""}, {"n": "番茄", "q": "1/2", "g": ""}, {"n": "起司", "q": "1", "g": ""}
+        {"n": "起司", "q": "1", "g": ""}, {"n": "蟹肉絲", "q": "2", "g": ""}, {"n": "小蝦", "q": "1/2", "g": ""}, {"n": "蛤蜊肉", "q": "1/2", "g": ""}, {"n": "帆立貝", "q": "8顆", "g": ""}, {"n": "番茄", "q": "1/2", "g": ""}, {"n": "起司", "q": "1", "g": ""}
     ]},
     {"name": "法式海陸盛宴", "sauce": "卡菲底醬 小藍杓*1平杓", "ingredients": [
         {"n": "起司", "q": "1/2", "g": ""}, {"n": "洋蔥", "q": "1/2", "g": ""}, {"n": "韓國烤肉餡", "q": "1(外1圈)", "g": ""}, {"n": "鱈魚片", "q": "5片", "g": ""}, {"n": "大蝦仁", "q": "5隻", "g": ""}, {"n": "番茄", "q": "1/2", "g": ""}, {"n": "花枝調味粉", "q": "均勻分灑", "g": ""}, {"n": "起司", "q": "1/2", "g": ""}
@@ -91,9 +92,11 @@ if "questions" not in st.session_state:
     st.session_state.questions = []
 if "results" not in st.session_state:
     st.session_state.results = []
+if "q_start_time" not in st.session_state:
+    st.session_state.q_start_time = 0
 
 # 標題區
-st.title("🍕 門市食材配方考核系統")
+st.title("🍕 食材配方考核系統")
 
 # 1. 測驗未開始：設定題數並生成題目
 if not st.session_state.started:
@@ -111,18 +114,15 @@ if not st.session_state.started:
         
         selected_questions = []
         for recipe in shuffled[:num_q]:
-            
-            # 這些披薩不提供大舊餅皮
             no_dajiu_list = ["松露干貝鮮蝦起司", "千島海鮮盛宴", "法式海陸盛宴"]
             if recipe["name"] in no_dajiu_list:
-                available_crusts = ["大厚", "大芝心", "大薄"]
+                available_crusts = ["大厚", "大芝心"]
             else:
                 available_crusts = CRUST_OPTIONS
                 
             crust = random.choice(available_crusts)
             ings = [dict(item) for item in recipe["ingredients"]]
             
-            # 【大舊餅皮特殊規則】若第一項食材是起司，移至最後一項
             if crust == "大舊" and ings and ings[0]["n"] == "起司":
                 first_cheese = ings.pop(0)
                 ings.append(first_cheese)
@@ -135,6 +135,7 @@ if not st.session_state.started:
             })
             
         st.session_state.questions = selected_questions
+        st.session_state.q_start_time = time.time()  # 記錄第一題開始時間
         st.rerun()
 
 # 2. 測驗進行中
@@ -151,7 +152,7 @@ elif st.session_state.current_q < len(st.session_state.questions):
         sauce_input = st.selectbox("底醬選擇", ALL_SAUCES, key=f"sauce_{curr_idx}", label_visibility="collapsed")
         
         st.write("2. 請依序選擇鋪設配料與份量：")
-        st.info("💡 提示：若為「大舊」餅皮，請注意底層起司順序調整喔！")
+        st.info("💡 提示：所有欄位皆為必填！若為「大舊」餅皮，請注意食材擺放順序喔！")
         
         # 標題列排版
         header_cols = st.columns([4, 4, 3])
@@ -175,42 +176,71 @@ elif st.session_state.current_q < len(st.session_state.questions):
         submitted = st.form_submit_button("提交本題答案", type="primary")
         
         if submitted:
-            sauce_correct = (sauce_input == q_data["sauce"])
+            # 嚴格防呆檢查：是否全部欄位都有填寫
+            has_error = False
+            error_messages = []
             
-            ing_correct_count = 0
-            for u, e in zip(ing_inputs, q_data["ingredients"]):
-                is_n_correct = (u["n"] == e["n"])
-                is_q_correct = (u["q"] == e["q"])
+            if sauce_input == "(請選擇)":
+                has_error = True
+                error_messages.append("❌ 請選擇「底醬與用量」！")
                 
-                # 【克數防呆機制】只提取字串中的純數字進行比對
-                if e["q"] == "克數填寫(g)":
-                    user_g_clean = re.sub(r'\D', '', u["g"]) # 移除所有非數字的字元
-                    is_g_correct = (user_g_clean == e["g"])
-                else:
-                    is_g_correct = True
-                
-                if is_n_correct and is_q_correct and is_g_correct:
-                    ing_correct_count += 1
+            for j, u in enumerate(ing_inputs, 1):
+                if u["n"] == "(請選擇)":
+                    has_error = True
+                    error_messages.append(f"❌ 第 {j} 項配料的「名稱」尚未選擇！")
+                if u["q"] == "(請選擇)":
+                    has_error = True
+                    error_messages.append(f"❌ 第 {j} 項配料的「份量單位」尚未選擇！")
+                if u["q"] == "克數填寫(g)" and not u["g"]:
+                    has_error = True
+                    error_messages.append(f"❌ 第 {j} 項配料選擇了克數填寫，但未輸入數字！")
                     
-            total_items = 1 + len(q_data["ingredients"])
-            got_items = (1 if sauce_correct else 0) + ing_correct_count
-            
-            is_fully_correct = (got_items == total_items)
-            if is_fully_correct:
-                st.session_state.score += 1
+            if has_error:
+                for err in error_messages:
+                    st.error(err)
+            else:
+                # 計算本題花費時間
+                elapsed_time = round(time.time() - st.session_state.q_start_time, 1)
                 
-            st.session_state.results.append({
-                "item": q_data["name"],
-                "sauce_user": sauce_input,
-                "sauce_ans": q_data["sauce"],
-                "sauce_ok": sauce_correct,
-                "ing_user": ing_inputs,
-                "ing_ans": q_data["ingredients"],
-                "fully_correct": is_fully_correct
-            })
-            
-            st.session_state.current_q += 1
-            st.rerun()
+                # 驗證底醬
+                sauce_correct = (sauce_input == q_data["sauce"])
+                
+                # 驗證配料
+                ing_correct_count = 0
+                for u, e in zip(ing_inputs, q_data["ingredients"]):
+                    is_n_correct = (u["n"] == e["n"])
+                    is_q_correct = (u["q"] == e["q"])
+                    
+                    if e["q"] == "克數填寫(g)":
+                        user_g_clean = re.sub(r'\D', '', u["g"])
+                        is_g_correct = (user_g_clean == e["g"])
+                    else:
+                        is_g_correct = True
+                    
+                    if is_n_correct and is_q_correct and is_g_correct:
+                        ing_correct_count += 1
+                        
+                total_items = 1 + len(q_data["ingredients"])
+                got_items = (1 if sauce_correct else 0) + ing_correct_count
+                
+                is_fully_correct = (got_items == total_items)
+                if is_fully_correct:
+                    st.session_state.score += 1
+                    
+                st.session_state.results.append({
+                    "item": q_data["name"],
+                    "sauce_user": sauce_input,
+                    "sauce_ans": q_data["sauce"],
+                    "sauce_ok": sauce_correct,
+                    "ing_user": ing_inputs,
+                    "ing_ans": q_data["ingredients"],
+                    "fully_correct": is_fully_correct,
+                    "time_spent": elapsed_time
+                })
+                
+                st.session_state.current_q += 1
+                st.session_state.q_start_time = time.time()  # 重設下一題的計時起點
+                st.rerun()
 
 # 3. 測驗完成結果頁面
 else:
@@ -223,17 +253,17 @@ else:
     st.metric(label="最終得分", value=f"{score} / {total_q} 題", delta=f"正確率 {percentage}%")
     
     if percentage == 100:
-        st.write("🌟 **評語：** 非常完美！連餅皮特殊規則都掌握得很好，你根本內場小天才！")
+        st.write("🌟 **評語：** 非常完美！速度與正確兼具，准予獨立上工！")
     elif percentage >= 80:
         st.write("👍 **評語：** 表現良好！部分細節再複習一下會更好。")
     else:
-        st.write("⚠️ **評語：** 尚未達標，壞小孩還不去背配方表嗎。")
+        st.write("⚠️ **評語：** 尚未達標，請繼續熟背配方表後重新測驗。")
         
     st.markdown("---")
-    st.subheader("📝 答題檢討明細")
+    st.subheader("📝 答題檢討明細與所花時間")
     for idx, res in enumerate(st.session_state.results, 1):
         status_icon = "✅" if res["fully_correct"] else "❌"
-        with st.expander(f"{status_icon} 第 {idx} 題：{res['item']}"):
+        with st.expander(f"{status_icon} 第 {idx} 題：{res['item']} (⏱️ 耗時 {res['time_spent']} 秒)"):
             
             u_sauce = res['sauce_user'] if res['sauce_user'] != "(請選擇)" else "(未選底醬)"
             if not res["sauce_ok"]:
@@ -243,15 +273,11 @@ else:
                 
             st.write("**配料比對：**")
             for u, e in zip(res["ing_user"], res["ing_ans"]):
-                # 組合正確答案字串
                 ans_str = f"{e['n']} {e['g']}g" if e['q'] == "克數填寫(g)" else f"{e['n']} {e['q']}"
-                
-                # 組合使用者作答字串
                 u_n = u['n'] if u['n'] != "(請選擇)" else "(未選配料)"
                 u_q = u['q'] if u['q'] != "(請選擇)" else "(未選份量)"
                 user_str = f"{u_n} {u['g']}" if u['q'] == "克數填寫(g)" else f"{u_n} {u_q}"
                 
-                # 【克數防呆機制】驗證明細也採用純數字比對
                 if e["q"] == "克數填寫(g)":
                     user_g_clean = re.sub(r'\D', '', u["g"])
                     is_g_correct = (user_g_clean == e["g"])
@@ -271,4 +297,5 @@ else:
         st.session_state.score = 0
         st.session_state.results = []
         st.rerun()
+
 
