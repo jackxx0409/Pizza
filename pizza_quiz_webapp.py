@@ -4,7 +4,10 @@ import random
 # 設定網頁標題與圖示
 st.set_page_config(page_title="門市食材配方考核系統", page_icon="🍕", layout="centered")
 
-# 定義下拉選單選項 (已清理下架產品之專屬醬料與配料)
+# 餅皮種類選項
+CRUST_OPTIONS = ["大厚", "大芝心", "大薄", "大舊"]
+
+# 定義下拉選單選項
 ALL_SAUCES = [
     "(請選擇)", "無", "千島醬 2滿杓(專)", "照燒醬 2平杓(專)", "Pizza Sauce 1平杓", 
     "卡菲底醬 小藍杓*1平杓", "BBQ醬 15cc*1滿匙", 
@@ -27,7 +30,7 @@ ALL_QUANTITIES = [
     "克數填寫(g)"
 ]
 
-# 將題庫改寫為結構化資料 (已刪除丸勝日式章魚燒與泰式檸檬椒麻豬)
+# 將題庫改寫為結構化資料
 RECIPES = [
     {"name": "松露干貝鮮蝦起司", "sauce": "無", "ingredients": [
         {"n": "起司", "q": "1/2", "g": ""}, {"n": "洋蔥", "q": "1/2", "g": ""}, {"n": "菠菜", "q": "1/2", "g": ""}, {"n": "大蝦仁", "q": "10隻", "g": ""}, {"n": "干貝", "q": "10個", "g": ""}, {"n": "魷魚圈", "q": "5圈", "g": ""}, {"n": "番茄", "q": "1/2", "g": ""}, {"n": "牛肝菌菇醬", "q": "橫直各5條", "g": ""}, {"n": "起司", "q": "1/2", "g": ""}
@@ -91,7 +94,7 @@ if "results" not in st.session_state:
 # 標題區
 st.title("🍕 門市食材配方考核系統")
 
-# 1. 測驗未開始：設定題數並開始
+# 1. 測驗未開始：設定題數並生成題目
 if not st.session_state.started:
     st.markdown("### 📋 測驗設定")
     num_q = st.slider("抽考題數：", min_value=3, max_value=len(RECIPES), value=5)
@@ -101,9 +104,29 @@ if not st.session_state.started:
         st.session_state.current_q = 0
         st.session_state.score = 0
         st.session_state.results = []
+        
         shuffled = RECIPES.copy()
         random.shuffle(shuffled)
-        st.session_state.questions = shuffled[:num_q]
+        
+        selected_questions = []
+        for recipe in shuffled[:num_q]:
+            # 隨機抽取餅皮
+            crust = random.choice(CRUST_OPTIONS)
+            ings = [dict(item) for item in recipe["ingredients"]]
+            
+            # 【大舊餅皮特殊規則】若第一項食材是起司，移至最後一項
+            if crust == "大舊" and ings and ings[0]["n"] == "起司":
+                first_cheese = ings.pop(0)
+                ings.append(first_cheese)
+                
+            selected_questions.append({
+                "name": f"{crust} - {recipe['name']}",
+                "crust": crust,
+                "sauce": recipe["sauce"],
+                "ingredients": ings
+            })
+            
+        st.session_state.questions = selected_questions
         st.rerun()
 
 # 2. 測驗進行中
@@ -120,7 +143,7 @@ elif st.session_state.current_q < len(st.session_state.questions):
         sauce_input = st.selectbox("底醬選擇", ALL_SAUCES, key=f"sauce_{curr_idx}", label_visibility="collapsed")
         
         st.write("2. 請依序選擇鋪設配料與份量：")
-        st.info("💡 若配方需要計算重量，請在「份量」欄位選擇「克數填寫(g)」，並在最右側輸入數字。")
+        st.info("💡 提示：若為「大舊」餅皮，請注意底層起司順序調整喔！")
         
         # 標題列排版
         header_cols = st.columns([4, 4, 3])
@@ -188,7 +211,7 @@ else:
     st.metric(label="最終得分", value=f"{score} / {total_q} 題", delta=f"正確率 {percentage}%")
     
     if percentage == 100:
-        st.write("🌟 **評語：** 非常完美！配方非常熟練，非常好！")
+        st.write("🌟 **評語：** 非常完美！連餅皮特殊規則都掌握得很好，准予獨立上工！")
     elif percentage >= 80:
         st.write("👍 **評語：** 表現良好！部分細節再複習一下會更好。")
     else:
@@ -230,3 +253,4 @@ else:
         st.session_state.score = 0
         st.session_state.results = []
         st.rerun()
+
