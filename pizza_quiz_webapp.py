@@ -223,11 +223,11 @@ else:
     st.metric(label="最終得分", value=f"{score} / {total_q} 題", delta=f"正確率 {percentage}%")
     
     if percentage == 100:
-        st.write("🌟 **評語：** 非常完美！連餅皮特殊規則都掌握得很好，准予獨立上工！")
+        st.write("🌟 **評語：** 非常完美！連餅皮特殊規則都掌握得很好，你根本內場小天才！")
     elif percentage >= 80:
         st.write("👍 **評語：** 表現良好！部分細節再複習一下會更好。")
     else:
-        st.write("⚠️ **評語：** 尚未達標，請繼續熟背配方表後重新測驗。")
+        st.write("⚠️ **評語：** 尚未達標，壞小孩還不去背配方表嗎。")
         
     st.markdown("---")
     st.subheader("📝 答題檢討明細")
