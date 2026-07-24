@@ -188,7 +188,7 @@ else:
     st.metric(label="最終得分", value=f"{score} / {total_q} 題", delta=f"正確率 {percentage}%")
     
     if percentage == 100:
-        st.write("🌟 **評語：** 非常完美！配方非常熟練，准予獨立上工！")
+        st.write("🌟 **評語：** 非常完美！配方非常熟練，非常好！")
     elif percentage >= 80:
         st.write("👍 **評語：** 表現良好！部分細節再複習一下會更好。")
     else:
