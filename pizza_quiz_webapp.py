@@ -1,5 +1,6 @@
 import streamlit as st
 import random
+import re
 
 # 設定網頁標題與圖示
 st.set_page_config(page_title="門市食材配方考核系統", page_icon="🍕", layout="centered")
@@ -27,7 +28,7 @@ ALL_QUANTITIES = [
     "(請選擇)", "1/2", "1", "1+1/2", "2", "5個", "5圈", "5片", "5隻", 
     "8顆", "9片", "10個", "10顆", "10隻", "10+2片", "14+8片", "16片", "26片", 
     "1(外1圈)", "1(滿杯)", "均勻分灑", "橫直各5條", "Z字來回5次", "Z字交叉來回7次", 
-    "克數填寫（不用寫單位）(g)"
+    "克數填寫(g)"
 ]
 
 # 將題庫改寫為結構化資料
@@ -111,14 +112,13 @@ if not st.session_state.started:
         selected_questions = []
         for recipe in shuffled[:num_q]:
             
-            # 【新增規則】這三款披薩不提供大舊餅皮
+            # 這些披薩不提供大舊餅皮
             no_dajiu_list = ["松露干貝鮮蝦起司", "千島海鮮盛宴", "法式海陸盛宴"]
             if recipe["name"] in no_dajiu_list:
                 available_crusts = ["大厚", "大芝心", "大薄"]
             else:
                 available_crusts = CRUST_OPTIONS
                 
-            # 隨機抽取餅皮
             crust = random.choice(available_crusts)
             ings = [dict(item) for item in recipe["ingredients"]]
             
@@ -175,15 +175,19 @@ elif st.session_state.current_q < len(st.session_state.questions):
         submitted = st.form_submit_button("提交本題答案", type="primary")
         
         if submitted:
-            # 驗證底醬
             sauce_correct = (sauce_input == q_data["sauce"])
             
-            # 驗證配料
             ing_correct_count = 0
             for u, e in zip(ing_inputs, q_data["ingredients"]):
                 is_n_correct = (u["n"] == e["n"])
                 is_q_correct = (u["q"] == e["q"])
-                is_g_correct = (u["g"] == e["g"]) if e["q"] == "克數填寫(g)" else True
+                
+                # 【克數防呆機制】只提取字串中的純數字進行比對
+                if e["q"] == "克數填寫(g)":
+                    user_g_clean = re.sub(r'\D', '', u["g"]) # 移除所有非數字的字元
+                    is_g_correct = (user_g_clean == e["g"])
+                else:
+                    is_g_correct = True
                 
                 if is_n_correct and is_q_correct and is_g_correct:
                     ing_correct_count += 1
@@ -245,10 +249,16 @@ else:
                 # 組合使用者作答字串
                 u_n = u['n'] if u['n'] != "(請選擇)" else "(未選配料)"
                 u_q = u['q'] if u['q'] != "(請選擇)" else "(未選份量)"
-                user_str = f"{u_n} {u['g']}g" if u['q'] == "克數填寫(g)" else f"{u_n} {u_q}"
+                user_str = f"{u_n} {u['g']}" if u['q'] == "克數填寫(g)" else f"{u_n} {u_q}"
                 
-                # 驗證該行是否全對
-                is_correct = (u["n"] == e["n"]) and (u["q"] == e["q"]) and (u["q"] != "克數填寫(g)" or u["g"] == e["g"])
+                # 【克數防呆機制】驗證明細也採用純數字比對
+                if e["q"] == "克數填寫(g)":
+                    user_g_clean = re.sub(r'\D', '', u["g"])
+                    is_g_correct = (user_g_clean == e["g"])
+                else:
+                    is_g_correct = True
+                    
+                is_correct = (u["n"] == e["n"]) and (u["q"] == e["q"]) and is_g_correct
                 
                 if is_correct:
                     st.write(f"  - ✅ `{ans_str}`")
@@ -261,3 +271,4 @@ else:
         st.session_state.score = 0
         st.session_state.results = []
         st.rerun()
+
