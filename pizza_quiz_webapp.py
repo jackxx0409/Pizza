@@ -27,7 +27,7 @@ ALL_QUANTITIES = [
     "(請選擇)", "1/2", "1", "1+1/2", "2", "5個", "5圈", "5片", "5隻", 
     "8顆", "9片", "10個", "10顆", "10隻", "10+2片", "14+8片", "16片", "26片", 
     "1(外1圈)", "1(滿杯)", "均勻分灑", "橫直各5條", "Z字來回5次", "Z字交叉來回7次", 
-    "克數填寫(g)"
+    "克數填寫（不用寫單位）(g)"
 ]
 
 # 將題庫改寫為結構化資料
@@ -110,8 +110,16 @@ if not st.session_state.started:
         
         selected_questions = []
         for recipe in shuffled[:num_q]:
+            
+            # 【新增規則】這三款披薩不提供大舊餅皮
+            no_dajiu_list = ["松露干貝鮮蝦起司", "千島海鮮盛宴", "法式海陸盛宴"]
+            if recipe["name"] in no_dajiu_list:
+                available_crusts = ["大厚", "大芝心", "大薄"]
+            else:
+                available_crusts = CRUST_OPTIONS
+                
             # 隨機抽取餅皮
-            crust = random.choice(CRUST_OPTIONS)
+            crust = random.choice(available_crusts)
             ings = [dict(item) for item in recipe["ingredients"]]
             
             # 【大舊餅皮特殊規則】若第一項食材是起司，移至最後一項
@@ -253,4 +261,3 @@ else:
         st.session_state.score = 0
         st.session_state.results = []
         st.rerun()
-
