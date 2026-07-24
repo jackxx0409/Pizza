@@ -4,7 +4,7 @@ import re
 import time
 
 # 設定網頁標題與圖示
-st.set_page_config(page_title="門市食材配方考核系統", page_icon="🍕", layout="centered")
+st.set_page_config(page_title="食材配方考核系統", page_icon="🍕", layout="centered")
 
 # 餅皮種類選項
 CRUST_OPTIONS = ["大厚", "大芝心", "大薄", "大舊"]
