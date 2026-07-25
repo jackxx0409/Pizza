@@ -335,6 +335,11 @@ else:
         st.session_state.results = []
         st.rerun()
 
+# --- 頁尾版權宣告 ---
+st.markdown("<br><br>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: gray; font-size: 14px;'>© 版權歸必勝客所有</p>", unsafe_allow_html=True)
+
+
 
 
 
