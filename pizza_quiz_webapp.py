@@ -2,6 +2,9 @@ import streamlit as st
 import random
 import re
 import time
+from datetime import datetime
+import gspread
+from google.oauth2.service_account import Credentials
 
 # 設定網頁標題與圖示
 st.set_page_config(page_title="食材配方考核系統", page_icon="🍕", layout="centered")
@@ -108,6 +111,10 @@ if "results" not in st.session_state:
     st.session_state.results = []
 if "q_start_time" not in st.session_state:
     st.session_state.q_start_time = 0
+if "staff_name" not in st.session_state:
+    st.session_state.staff_name = ""
+if "uploaded" not in st.session_state:
+    st.session_state.uploaded = False
 
 # 標題區
 st.title("🍕 食材配方考核系統")
@@ -115,58 +122,66 @@ st.title("🍕 食材配方考核系統")
 # 1. 測驗未開始：設定題數並生成題目
 if not st.session_state.started:
     st.markdown("### 📋 測驗設定")
-    num_q = st.slider("抽考題數：", min_value=3, max_value=len(RECIPES), value=5)
+    
+    # 新增：輸入員工姓名
+    staff_name_input = st.text_input("👤 請輸入你的大名 (必填)：", value=st.session_state.staff_name)
+    num_q = st.slider("🎯 抽考題數：", min_value=3, max_value=len(RECIPES), value=5)
     
     if st.button("🚀 開始測驗", type="primary"):
-        st.session_state.started = True
-        st.session_state.current_q = 0
-        st.session_state.score = 0
-        st.session_state.results = []
-        
-        shuffled = RECIPES.copy()
-        random.shuffle(shuffled)
-        
-        selected_questions = []
-        for recipe in shuffled[:num_q]:
+        if not staff_name_input.strip():
+            st.error("❌ 提醒：請先輸入姓名才能開始測驗喔！")
+        else:
+            st.session_state.staff_name = staff_name_input.strip()
+            st.session_state.started = True
+            st.session_state.current_q = 0
+            st.session_state.score = 0
+            st.session_state.results = []
+            st.session_state.uploaded = False
             
-            # 【特殊口味無大薄大舊規則】
-            no_thin_old_list = ["松露干貝鮮蝦起司", "千島海鮮盛宴", "法式海陸盛宴"]
-            if recipe["name"] in no_thin_old_list:
-                available_crusts = ["大厚", "大芝心", "大火山", "大歐火"]
-            else:
-                available_crusts = CRUST_OPTIONS
+            shuffled = RECIPES.copy()
+            random.shuffle(shuffled)
+            
+            selected_questions = []
+            for recipe in shuffled[:num_q]:
                 
-            crust = random.choice(available_crusts)
-            sauce = recipe["sauce"]
-            ings = [dict(item) for item in recipe["ingredients"]]
-            
-            # 【大火山、大歐火：醬料改兩圈規則】
-            if crust in ["大火山", "大歐火"]:
-                # 判斷底醬：若「不包含」杓、勺、匙，才進行轉換
-                if not any(keyword in sauce for keyword in ["杓", "勺", "匙"]):
-                    if sauce == "洋釀淋醬 Z字交叉來回7次":
-                        sauce = "洋釀淋醬 2圈"
+                # 【特殊口味無大薄大舊規則】
+                no_thin_old_list = ["松露干貝鮮蝦起司", "千島海鮮盛宴", "法式海陸盛宴"]
+                if recipe["name"] in no_thin_old_list:
+                    available_crusts = ["大厚", "大芝心", "大火山", "大歐火"]
+                else:
+                    available_crusts = CRUST_OPTIONS
+                    
+                crust = random.choice(available_crusts)
+                sauce = recipe["sauce"]
+                ings = [dict(item) for item in recipe["ingredients"]]
                 
-                # 修改食材醬料標準答案
-                for ing in ings:
-                    if ing["n"] in ["明太子醬", "牛肝菌菇醬"]:
-                        ing["q"] = "2圈"
-            
-            # 【大舊餅皮特殊規則】若第一項食材是起司，移至最後一項
-            if crust == "大舊" and ings and ings[0]["n"] == "起司":
-                first_cheese = ings.pop(0)
-                ings.append(first_cheese)
+                # 【大火山、大歐火：醬料改兩圈規則】
+                if crust in ["大火山", "大歐火"]:
+                    # 判斷底醬：若「不包含」杓、勺、匙，才進行轉換
+                    if not any(keyword in sauce for keyword in ["杓", "勺", "匙"]):
+                        if sauce == "洋釀淋醬 Z字交叉來回7次":
+                            sauce = "洋釀淋醬 2圈"
+                    
+                    # 修改食材醬料標準答案
+                    for ing in ings:
+                        if ing["n"] in ["明太子醬", "牛肝菌菇醬"]:
+                            ing["q"] = "2圈"
                 
-            selected_questions.append({
-                "name": f"{crust} - {recipe['name']}",
-                "crust": crust,
-                "sauce": sauce,
-                "ingredients": ings
-            })
-            
-        st.session_state.questions = selected_questions
-        st.session_state.q_start_time = time.time()  # 記錄第一題開始時間
-        st.rerun()
+                # 【大舊餅皮特殊規則】若第一項食材是起司，移至最後一項
+                if crust == "大舊" and ings and ings[0]["n"] == "起司":
+                    first_cheese = ings.pop(0)
+                    ings.append(first_cheese)
+                    
+                selected_questions.append({
+                    "name": f"{crust} - {recipe['name']}",
+                    "crust": crust,
+                    "sauce": sauce,
+                    "ingredients": ings
+                })
+                
+            st.session_state.questions = selected_questions
+            st.session_state.q_start_time = time.time()  # 記錄第一題開始時間
+            st.rerun()
 
 # 2. 測驗進行中
 elif st.session_state.current_q < len(st.session_state.questions):
@@ -174,7 +189,7 @@ elif st.session_state.current_q < len(st.session_state.questions):
     curr_idx = st.session_state.current_q
     q_data = st.session_state.questions[curr_idx]
     
-    st.progress((curr_idx) / total_q, text=f"進度：第 {curr_idx + 1} / {total_q} 題")
+    st.progress((curr_idx) / total_q, text=f"進度：第 {curr_idx + 1} / {total_q} 題 (受測者：{st.session_state.staff_name})")
     st.subheader(f"第 {curr_idx + 1} 題：【{q_data['name']}】")
     
     with st.form(key=f"q_form_{curr_idx}"):
@@ -285,7 +300,7 @@ else:
     percentage = int((score / total_q) * 100)
     
     st.balloons()
-    st.success("🎉 測驗完成！")
+    st.success(f"🎉 測驗完成！辛苦了，{st.session_state.staff_name}！")
     st.metric(label="最終得分", value=f"{score} / {total_q} 題", delta=f"正確率 {percentage}%")
     
     # 評語已更新，與截圖內容一致
@@ -296,6 +311,52 @@ else:
     else:
         st.write("⚠️ **評語：** 尚未達標，壞小孩快去看神奇的配方表啊")
         
+    # --- 新增：自動將成績上傳至 Google Sheets ---
+    st.markdown("---")
+    st.subheader("☁️ 成績資料同步狀態")
+    
+    if not st.session_state.uploaded:
+        with st.spinner("正在自動將成績上傳至雲端試算表..."):
+            try:
+                # 取得 Streamlit Secrets 中的金鑰
+                creds_dict = dict(st.secrets["gcp_service_account"])
+                
+                # 設定 API 授權範圍
+                scopes = [
+                    "https://www.googleapis.com/auth/spreadsheets",
+                    "https://www.googleapis.com/auth/drive"
+                ]
+                creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
+                client = gspread.authorize(creds)
+                
+                # 開啟你的 Google 試算表（名稱必須與你在 Google Drive 建立的一模一樣）
+                sheet = client.open("披薩考核成績紀錄").sheet1
+                
+                # 整理要寫入的資料
+                current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                total_time = sum([r["time_spent"] for r in st.session_state.results])
+                
+                # 對應欄位：時間 | 姓名 | 題數 | 正確題數 | 正確率 | 耗時(秒)
+                row_data = [
+                    current_time,
+                    st.session_state.staff_name,
+                    total_q,
+                    score,
+                    f"{percentage}%",
+                    round(total_time, 1)
+                ]
+                
+                # 寫入資料
+                sheet.append_row(row_data)
+                
+                st.session_state.uploaded = True
+                st.success("✅ 太棒了！本次成績已經成功寫入「披薩考核成績紀錄」試算表中！")
+                
+            except Exception as e:
+                st.error(f"❌ 上傳失敗。請稍後再試，或檢查 Secrets 設定檔是否有誤。詳細錯誤：{e}")
+    else:
+        st.success("✅ 本次成績已成功保存在試算表中。")
+
     st.markdown("---")
     st.subheader("📝 答題檢討明細與所花時間")
     for idx, res in enumerate(st.session_state.results, 1):
@@ -333,6 +394,7 @@ else:
         st.session_state.current_q = 0
         st.session_state.score = 0
         st.session_state.results = []
+        st.session_state.uploaded = False
         st.rerun()
 
 # --- 頁尾版權宣告 ---
