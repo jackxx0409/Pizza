@@ -201,7 +201,7 @@ if not st.session_state.started:
                 st.rerun()
                 
     with col3:
-        if st.button("🔥 究極老油條\n(12題全方位大考驗)", use_container_width=True):
+        if st.button("🔥 究極老油條\n(12題全方位考驗)", use_container_width=True):
             if not staff_name_input.strip():
                 st.error("❌ 請先輸入姓名！")
             else:
