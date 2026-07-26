@@ -3,7 +3,8 @@ import random
 import re
 import time
 from datetime import datetime
-import pandas as pd
+import gspread
+from google.oauth2.service_account import Credentials
 
 # 設定網頁標題與圖示
 st.set_page_config(page_title="食材配方考核系統", page_icon="🍕", layout="centered")
@@ -285,24 +286,29 @@ else:
     if not st.session_state.uploaded:
         with st.spinner("正在自動將成績上傳至雲端試算表..."):
             try:
-                conn = st.connection("gsheets", type="gsheets")
+                creds_dict = dict(st.secrets["gcp_service_account"])
+                scopes = [
+                    "https://www.googleapis.com/auth/spreadsheets",
+                    "https://www.googleapis.com/auth/drive"
+                ]
+                creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
+                client = gspread.authorize(creds)
+                
+                sheet = client.open("披薩考核成績紀錄").sheet1
                 
                 current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 total_time = sum([r["time_spent"] for r in st.session_state.results])
                 
-                new_row = pd.DataFrame([{
-                    "測驗時間": current_time,
-                    "員工姓名": st.session_state.staff_name,
-                    "測驗題數": total_q,
-                    "正確題數": score,
-                    "正確率": f"{percentage}%",
-                    "總耗時(秒)": round(total_time, 1)
-                }])
+                row_data = [
+                    current_time,
+                    st.session_state.staff_name,
+                    total_q,
+                    score,
+                    f"{percentage}%",
+                    round(total_time, 1)
+                ]
                 
-                existing_data = conn.read(worksheet="工作表1", ttl=0)
-                updated_df = pd.concat([existing_data, new_row], ignore_index=True)
-                conn.update(worksheet="工作表1", data=updated_df)
-                
+                sheet.append_row(row_data)
                 st.session_state.uploaded = True
                 st.success("✅ 太棒了！本次成績已經成功寫入「披薩考核成績紀錄」試算表中！")
                 
@@ -352,7 +358,3 @@ else:
 
 st.markdown("<br><br>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: center; color: gray; font-size: 14px;'>© 版權歸必勝客所有</p>", unsafe_allow_html=True)
-
-
-
-
