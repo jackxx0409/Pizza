@@ -291,7 +291,7 @@ else:
                 total_time = sum([r["time_spent"] for r in st.session_state.results])
                 
                 # 你剛剛部署好的 Apps Script 網頁應用程式網址
-                apps_script_url = "https://script.google.com/macros/s/AKfycbyxx8nE-XCv_5XT7LW11qjjedTwRm_A8ZYBJVe9DsFOFJ2YLowsFl1X5O09AG6IyRmJS/exec"
+                apps_script_url = "https://script.google.com/macros/s/AKfycbxx8nE-XCv_5XT7LW11qjjeDtWrM_A8ZYBJVe9DsFOFJ2YLOwsFl1X5O09AG6IyRmjS/exec"
                 
                 payload = {
                     "time": current_time,
