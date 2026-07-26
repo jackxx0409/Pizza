@@ -3,6 +3,7 @@ import random
 import re
 import time
 from datetime import datetime
+import json
 import urllib.request
 import urllib.parse
 
@@ -280,24 +281,46 @@ else:
     else:
         st.write("⚠️ **評語：** 尚未達標，壞小孩快去看神奇的配方表啊")
         
-    # 自動上傳至 Google Forms（完全不需要外部套件！）
+    st.markdown("---")
+    st.subheader("☁️ 成績資料同步狀態")
+    
     if not st.session_state.uploaded:
-        try:
-            current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            # 填入你的 Google 表單連結與 entry 欄位代碼
-            form_url = "https://docs.google.com/spreadsheets/d/1oNEKIrvzUkD6VJwdHD98V2vze8K12Wz5-aScL5ukCKE/edit?gid=0#gid=0"
-            form_data = {
-                "entry.111111111": st.session_state.staff_name,
-                "entry.222222222": f"{score} / {total_q} ({percentage}%)",
-                "entry.333333333": current_time
-            }
-            encoded_data = urllib.parse.urlencode(form_data).encode("utf-8")
-            req = urllib.request.Request(form_url, data=encoded_data, method="POST")
-            urllib.request.urlopen(req)
-            st.session_state.uploaded = True
-            st.success("☁️ 成績已自動上傳至雲端紀錄！")
-        except Exception:
-            pass
+        with st.spinner("正在自動將成績寫入 Google 試算表..."):
+            try:
+                current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                total_time = sum([r["time_spent"] for r in st.session_state.results])
+                
+                # 你剛剛部署好的 Apps Script 網頁應用程式網址
+                apps_script_url = "https://script.google.com/macros/s/AKfycbyxx8nE-XCv_5XT7LW11qjjedTwRm_A8ZYBJVe9DsFOFJ2YLowsFl1X5O09AG6IyRmJS/exec"
+                
+                payload = {
+                    "time": current_time,
+                    "name": st.session_state.staff_name,
+                    "total": total_q,
+                    "score": score,
+                    "percentage": f"{percentage}%",
+                    "duration": round(total_time, 1)
+                }
+                
+                req_data = json.dumps(payload).encode("utf-8")
+                req = urllib.request.Request(
+                    apps_script_url, 
+                    data=req_data, 
+                    headers={'Content-Type': 'application/json'}, 
+                    method="POST"
+                )
+                
+                with urllib.request.urlopen(req) as response:
+                    res_body = response.read().decode("utf-8")
+                    if "success" in res_body:
+                        st.session_state.uploaded = True
+                        st.success("✅ 成績已經完美寫入 Google 試算表中！")
+                    else:
+                        st.error("❌ 寫入失敗，請確認 Apps Script 是否設定正確。")
+            except Exception as e:
+                st.error(f"❌ 發生錯誤：{e}")
+    else:
+        st.success("✅ 本次成績已成功保存在試算表中。")
 
     st.markdown("---")
     st.subheader("📝 答題檢討明細與所花時間")
