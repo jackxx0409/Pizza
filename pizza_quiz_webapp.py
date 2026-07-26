@@ -120,6 +120,7 @@ st.title("🍕 食材配方考核系統")
 
 # 共用函式：產生題目清單
 def generate_questions(num_q):
+    num_q = min(num_q, len(RECIPES))
     shuffled = RECIPES.copy()
     random.shuffle(shuffled)
     selected_questions = []
@@ -155,64 +156,64 @@ def generate_questions(num_q):
         })
     return selected_questions
 
-# 1. 測驗未開始（設定頁面與身份選擇按鈕）
+# 1. 測驗未開始
 if not st.session_state.started:
-    st.markdown("### 📋 測驗設定與身份選擇")
+    st.markdown("### 📋 測驗設定與資歷選擇")
     staff_name_input = st.text_input("👤 請輸入您的大名 (必填)：", value=st.session_state.staff_name)
     
     st.markdown("---")
-    st.markdown("#### 🛡️ 請選擇您的資歷級別開始挑戰：")
+    st.markdown("#### 🛡️ 請選擇您的挑戰級別：")
     
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        if st.button("🌱 新人", use_container_width=True):
+        if st.button("🌱 新人\n(5題扎實練習)", use_container_width=True):
             if not staff_name_input.strip():
                 st.error("❌ 請先輸入姓名！")
             else:
                 st.session_state.staff_name = staff_name_input.strip()
-                st.session_state.level_name = "🌱 新人 (3題)"
+                st.session_state.level_name = "🌱 新人"
                 st.session_state.started = True
                 st.session_state.current_q = 0
                 st.session_state.score = 0
                 st.session_state.results = []
                 st.session_state.uploaded = False
                 st.session_state.retry_mode = False
-                st.session_state.questions = generate_questions(3) # 新人考3題
+                st.session_state.questions = generate_questions(5)
                 st.session_state.q_start_time = time.time()
                 st.rerun()
                 
     with col2:
-        if st.button("🧑 普通人", use_container_width=True):
+        if st.button("🧑 普通人\n(7題標準考核)", use_container_width=True):
             if not staff_name_input.strip():
                 st.error("❌ 請先輸入姓名！")
             else:
                 st.session_state.staff_name = staff_name_input.strip()
-                st.session_state.level_name = "🧑 普通人 (5題)"
+                st.session_state.level_name = "🧑 普通人"
                 st.session_state.started = True
                 st.session_state.current_q = 0
                 st.session_state.score = 0
                 st.session_state.results = []
                 st.session_state.uploaded = False
                 st.session_state.retry_mode = False
-                st.session_state.questions = generate_questions(5) # 普通人考5題
+                st.session_state.questions = generate_questions(7)
                 st.session_state.q_start_time = time.time()
                 st.rerun()
                 
     with col3:
-        if st.button("🔥 究極老油條", use_container_width=True):
+        if st.button("🔥 究極老油條\n(12題全方位大考驗)", use_container_width=True):
             if not staff_name_input.strip():
                 st.error("❌ 請先輸入姓名！")
             else:
                 st.session_state.staff_name = staff_name_input.strip()
-                st.session_state.level_name = "🔥 究極老油條 (10題)"
+                st.session_state.level_name = "🔥 究極老油條"
                 st.session_state.started = True
                 st.session_state.current_q = 0
                 st.session_state.score = 0
                 st.session_state.results = []
                 st.session_state.uploaded = False
                 st.session_state.retry_mode = False
-                st.session_state.questions = generate_questions(10) # 老油條考10題
+                st.session_state.questions = generate_questions(12)
                 st.session_state.q_start_time = time.time()
                 st.rerun()
 
@@ -346,17 +347,19 @@ else:
                     details_list.append(f"Q{idx}:{res['item']}{status}")
                 details_summary = f"[{st.session_state.level_name}] " + " ｜ ".join(details_list)
                 
-                # 你的 Apps Script 網址
                 apps_script_url = "https://script.google.com/macros/s/AKfycbxx8nE-XCv_5XT7LW11qjjeDtWrM_A8ZYBJVe9DsFOFJ2YLOwsFl1X5O09AG6IyRmjS/exec"
+                
+                formatted_name = f"{st.session_state.staff_name} [{st.session_state.level_name}]"
                 
                 payload = {
                     "time": current_time,
-                    "name": f"{st.session_state.staff_name} ({st.session_state.level_name})",
+                    "name": formatted_name,
                     "total": total_q,
                     "score": score,
                     "percentage": f"{percentage}%",
                     "duration": round(total_time, 1),
-                    "details": details_summary
+                    "details": details_summary,
+                    "isRetry": st.session_state.retry_mode  # 傳遞是否為錯題練習的狀態
                 }
                 
                 req_data = json.dumps(payload).encode("utf-8")
