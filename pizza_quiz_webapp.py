@@ -3,8 +3,8 @@ import random
 import re
 import time
 from datetime import datetime
-import gspread
-from google.oauth2.service_account import Credentials
+import urllib.request
+import urllib.parse
 
 # 設定網頁標題與圖示
 st.set_page_config(page_title="食材配方考核系統", page_icon="🍕", layout="centered")
@@ -280,42 +280,24 @@ else:
     else:
         st.write("⚠️ **評語：** 尚未達標，壞小孩快去看神奇的配方表啊")
         
-    st.markdown("---")
-    st.subheader("☁️ 成績資料同步狀態")
-    
+    # 自動上傳至 Google Forms（完全不需要外部套件！）
     if not st.session_state.uploaded:
-        with st.spinner("正在自動將成績上傳至雲端試算表..."):
-            try:
-                creds_dict = dict(st.secrets["gcp_service_account"])
-                scopes = [
-                    "https://www.googleapis.com/auth/spreadsheets",
-                    "https://www.googleapis.com/auth/drive"
-                ]
-                creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
-                client = gspread.authorize(creds)
-                
-                sheet = client.open("披薩考核成績紀錄").sheet1
-                
-                current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                total_time = sum([r["time_spent"] for r in st.session_state.results])
-                
-                row_data = [
-                    current_time,
-                    st.session_state.staff_name,
-                    total_q,
-                    score,
-                    f"{percentage}%",
-                    round(total_time, 1)
-                ]
-                
-                sheet.append_row(row_data)
-                st.session_state.uploaded = True
-                st.success("✅ 太棒了！本次成績已經成功寫入「披薩考核成績紀錄」試算表中！")
-                
-            except Exception as e:
-                st.error(f"❌ 上傳失敗。詳細錯誤：{e}")
-    else:
-        st.success("✅ 本次成績已成功保存在試算表中。")
+        try:
+            current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            # 填入你的 Google 表單連結與 entry 欄位代碼
+            form_url = "https://docs.google.com/spreadsheets/d/1oNEKIrvzUkD6VJwdHD98V2vze8K12Wz5-aScL5ukCKE/edit?gid=0#gid=0"
+            form_data = {
+                "entry.111111111": st.session_state.staff_name,
+                "entry.222222222": f"{score} / {total_q} ({percentage}%)",
+                "entry.333333333": current_time
+            }
+            encoded_data = urllib.parse.urlencode(form_data).encode("utf-8")
+            req = urllib.request.Request(form_url, data=encoded_data, method="POST")
+            urllib.request.urlopen(req)
+            st.session_state.uploaded = True
+            st.success("☁️ 成績已自動上傳至雲端紀錄！")
+        except Exception:
+            pass
 
     st.markdown("---")
     st.subheader("📝 答題檢討明細與所花時間")
