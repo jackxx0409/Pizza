@@ -3,8 +3,6 @@ import random
 import re
 import time
 from datetime import datetime
-import gspread
-from google.oauth2.service_account import Credentials
 
 # 設定網頁標題與圖示
 st.set_page_config(page_title="食材配方考核系統", page_icon="🍕", layout="centered")
@@ -12,7 +10,7 @@ st.set_page_config(page_title="食材配方考核系統", page_icon="🍕", layo
 # 餅皮種類選項
 CRUST_OPTIONS = ["大厚", "大芝心", "大薄", "大舊", "大火山", "大歐火"]
 
-# 定義底醬選單：已將不需要改為2圈的選項移除，保持乾淨
+# 定義底醬選單
 ALL_SAUCES = [
     "(請選擇)", 
     "無", 
@@ -29,15 +27,10 @@ ALL_SAUCES = [
 # 定義食材選單
 ALL_INGREDIENTS = [
     "(請選擇)",
-    # --- 核心底層 ---
     "起司",
-    # --- 蔬菜/水果類 ---
     "洋蔥", "洋菇", "青椒", "菠菜", "番茄", "鳳梨", "韭菜", "三色絲", "韓國泡菜",
-    # --- 海鮮類 ---
     "大蝦仁", "小蝦", "干貝", "魷魚圈", "章魚", "蛤蜊肉", "鱈魚片", "蟹肉絲", "1/2蟹風味棒", "花枝條",
-    # --- 肉類 ---
     "火腿", "培根", "PP", "午餐肉丁", "豬義混", "炭烤雞腿塊", "牛肉丸", "費城牛肉", "黑胡椒牛柳", "韓式燒牛肉", "韓式豬五花", "韓國烤肉餡", "甜不辣",
-    # --- 醬料與調味類 ---
     "明太子醬", "牛肝菌菇醬", "花枝調味粉"
 ]
 
@@ -49,7 +42,7 @@ ALL_QUANTITIES = [
     "2圈", "克數填寫(g)"
 ]
 
-# 將題庫改寫為結構化資料
+# 題庫資料
 RECIPES = [
     {"name": "松露干貝鮮蝦起司", "sauce": "無", "ingredients": [
         {"n": "起司", "q": "1/2", "g": ""}, {"n": "洋蔥", "q": "1/2", "g": ""}, {"n": "菠菜", "q": "1/2", "g": ""}, {"n": "大蝦仁", "q": "10", "g": ""}, {"n": "干貝", "q": "10", "g": ""}, {"n": "魷魚圈", "q": "5", "g": ""}, {"n": "番茄", "q": "1/2", "g": ""}, {"n": "牛肝菌菇醬", "q": "橫直各5條", "g": ""}, {"n": "起司", "q": "1/2", "g": ""}
@@ -98,7 +91,7 @@ RECIPES = [
     ]}
 ]
 
-# 初始化 Session State 狀態
+# 初始化 Session State
 if "started" not in st.session_state:
     st.session_state.started = False
 if "current_q" not in st.session_state:
@@ -116,20 +109,17 @@ if "staff_name" not in st.session_state:
 if "uploaded" not in st.session_state:
     st.session_state.uploaded = False
 
-# 標題區
 st.title("🍕 食材配方考核系統")
 
-# 1. 測驗未開始：設定題數並生成題目
+# 1. 測驗未開始
 if not st.session_state.started:
     st.markdown("### 📋 測驗設定")
-    
-    # 新增：輸入員工姓名
-    staff_name_input = st.text_input("👤 請輸入你的大名 (必填)：", value=st.session_state.staff_name)
+    staff_name_input = st.text_input("👤 請輸入員工姓名 (必填)：", value=st.session_state.staff_name)
     num_q = st.slider("🎯 抽考題數：", min_value=3, max_value=len(RECIPES), value=5)
     
     if st.button("🚀 開始測驗", type="primary"):
         if not staff_name_input.strip():
-            st.error("❌ 提醒：請先輸入姓名才能開始測驗喔！")
+            st.error("❌ 提醒：請先輸入員工姓名才能開始測驗喔！")
         else:
             st.session_state.staff_name = staff_name_input.strip()
             st.session_state.started = True
@@ -143,8 +133,6 @@ if not st.session_state.started:
             
             selected_questions = []
             for recipe in shuffled[:num_q]:
-                
-                # 【特殊口味無大薄大舊規則】
                 no_thin_old_list = ["松露干貝鮮蝦起司", "千島海鮮盛宴", "法式海陸盛宴"]
                 if recipe["name"] in no_thin_old_list:
                     available_crusts = ["大厚", "大芝心", "大火山", "大歐火"]
@@ -155,19 +143,14 @@ if not st.session_state.started:
                 sauce = recipe["sauce"]
                 ings = [dict(item) for item in recipe["ingredients"]]
                 
-                # 【大火山、大歐火：醬料改兩圈規則】
                 if crust in ["大火山", "大歐火"]:
-                    # 判斷底醬：若「不包含」杓、勺、匙，才進行轉換
                     if not any(keyword in sauce for keyword in ["杓", "勺", "匙"]):
                         if sauce == "洋釀淋醬 Z字交叉來回7次":
                             sauce = "洋釀淋醬 2圈"
-                    
-                    # 修改食材醬料標準答案
                     for ing in ings:
                         if ing["n"] in ["明太子醬", "牛肝菌菇醬"]:
                             ing["q"] = "2圈"
                 
-                # 【大舊餅皮特殊規則】若第一項食材是起司，移至最後一項
                 if crust == "大舊" and ings and ings[0]["n"] == "起司":
                     first_cheese = ings.pop(0)
                     ings.append(first_cheese)
@@ -180,7 +163,7 @@ if not st.session_state.started:
                 })
                 
             st.session_state.questions = selected_questions
-            st.session_state.q_start_time = time.time()  # 記錄第一題開始時間
+            st.session_state.q_start_time = time.time()
             st.rerun()
 
 # 2. 測驗進行中
@@ -197,7 +180,6 @@ elif st.session_state.current_q < len(st.session_state.questions):
         sauce_input = st.selectbox("底醬選擇", ALL_SAUCES, key=f"sauce_{curr_idx}", label_visibility="collapsed")
         
         st.write("2. 請依序選擇鋪設配料與份量：")
-        
         if q_data["crust"] == "大舊":
             st.warning("💡 提示：本題為「大舊」餅皮，請注意底層起司順序調整！")
         elif q_data["crust"] in ["大火山", "大歐火"]:
@@ -205,7 +187,6 @@ elif st.session_state.current_q < len(st.session_state.questions):
         else:
             st.info("💡 提示：所有欄位皆為必填！")
         
-        # 標題列排版
         header_cols = st.columns([4, 4, 3])
         header_cols[0].markdown("**配料名稱**")
         header_cols[1].markdown("**份量單位**")
@@ -214,27 +195,22 @@ elif st.session_state.current_q < len(st.session_state.questions):
         ing_inputs = []
         for j in range(len(q_data["ingredients"])):
             cols = st.columns([4, 4, 3])
-            
             with cols[0]:
                 sel_n = st.selectbox(f"配料 {j}", ALL_INGREDIENTS, key=f"ing_n_{curr_idx}_{j}", label_visibility="collapsed")
             with cols[1]:
                 sel_q = st.selectbox(f"份量 {j}", ALL_QUANTITIES, key=f"ing_q_{curr_idx}_{j}", label_visibility="collapsed")
             with cols[2]:
                 text_g = st.text_input(f"克數 {j}", key=f"ing_g_{curr_idx}_{j}", label_visibility="collapsed", placeholder="輸入數字")
-                
             ing_inputs.append({"n": sel_n, "q": sel_q, "g": text_g.strip()})
             
         submitted = st.form_submit_button("提交本題答案", type="primary")
         
         if submitted:
-            # 嚴格防呆檢查：是否全部欄位都有填寫
             has_error = False
             error_messages = []
-            
             if sauce_input == "(請選擇)":
                 has_error = True
                 error_messages.append("❌ 請選擇「底醬與用量」！")
-                
             for j, u in enumerate(ing_inputs, 1):
                 if u["n"] == "(請選擇)":
                     has_error = True
@@ -250,30 +226,23 @@ elif st.session_state.current_q < len(st.session_state.questions):
                 for err in error_messages:
                     st.error(err)
             else:
-                # 計算本題花費時間
                 elapsed_time = round(time.time() - st.session_state.q_start_time, 1)
-                
-                # 驗證底醬
                 sauce_correct = (sauce_input == q_data["sauce"])
                 
-                # 驗證配料
                 ing_correct_count = 0
                 for u, e in zip(ing_inputs, q_data["ingredients"]):
                     is_n_correct = (u["n"] == e["n"])
                     is_q_correct = (u["q"] == e["q"])
-                    
                     if e["q"] == "克數填寫(g)":
                         user_g_clean = re.sub(r'\D', '', u["g"])
                         is_g_correct = (user_g_clean == e["g"])
                     else:
                         is_g_correct = True
-                    
                     if is_n_correct and is_q_correct and is_g_correct:
                         ing_correct_count += 1
                         
                 total_items = 1 + len(q_data["ingredients"])
                 got_items = (1 if sauce_correct else 0) + ing_correct_count
-                
                 is_fully_correct = (got_items == total_items)
                 if is_fully_correct:
                     st.session_state.score += 1
@@ -288,9 +257,8 @@ elif st.session_state.current_q < len(st.session_state.questions):
                     "fully_correct": is_fully_correct,
                     "time_spent": elapsed_time
                 })
-                
                 st.session_state.current_q += 1
-                st.session_state.q_start_time = time.time()  # 重設下一題的計時起點
+                st.session_state.q_start_time = time.time()
                 st.rerun()
 
 # 3. 測驗完成結果頁面
@@ -303,7 +271,6 @@ else:
     st.success(f"🎉 測驗完成！辛苦了，{st.session_state.staff_name}！")
     st.metric(label="最終得分", value=f"{score} / {total_q} 題", delta=f"正確率 {percentage}%")
     
-    # 評語已更新，與截圖內容一致
     if percentage == 100:
         st.write("🌟 **評語：** 非常完美！你根本內場小天才吧")
     elif percentage >= 80:
@@ -311,49 +278,38 @@ else:
     else:
         st.write("⚠️ **評語：** 尚未達標，壞小孩快去看神奇的配方表啊")
         
-    # --- 新增：自動將成績上傳至 Google Sheets ---
     st.markdown("---")
     st.subheader("☁️ 成績資料同步狀態")
     
     if not st.session_state.uploaded:
         with st.spinner("正在自動將成績上傳至雲端試算表..."):
             try:
-                # 取得 Streamlit Secrets 中的金鑰
-                creds_dict = dict(st.secrets["gcp_service_account"])
+                # 使用 Streamlit 內建連線功能寫入 Google 試算表（不需要額外裝 gspread）
+                conn = st.connection("gsheets", type="streamlit_gsheets.GSheetsConnection")
                 
-                # 設定 API 授權範圍
-                scopes = [
-                    "https://www.googleapis.com/auth/spreadsheets",
-                    "https://www.googleapis.com/auth/drive"
-                ]
-                creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
-                client = gspread.authorize(creds)
-                
-                # 開啟你的 Google 試算表（名稱必須與你在 Google Drive 建立的一模一樣）
-                sheet = client.open("披薩考核成績紀錄").sheet1
-                
-                # 整理要寫入的資料
                 current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 total_time = sum([r["time_spent"] for r in st.session_state.results])
                 
-                # 對應欄位：時間 | 姓名 | 題數 | 正確題數 | 正確率 | 耗時(秒)
-                row_data = [
-                    current_time,
-                    st.session_state.staff_name,
-                    total_q,
-                    score,
-                    f"{percentage}%",
-                    round(total_time, 1)
-                ]
+                new_row = [{
+                    "測驗時間": current_time,
+                    "員工姓名": st.session_state.staff_name,
+                    "測驗題數": total_q,
+                    "正確題數": score,
+                    "正確率": f"{percentage}%",
+                    "總耗時(秒)": round(total_time, 1)
+                }]
                 
-                # 寫入資料
-                sheet.append_row(row_data)
+                # 讀取現有資料並加上新的一行
+                existing_data = conn.read(worksheet="工作表1", usecols=[0, 1, 2, 3, 4, 5], ttl=0)
+                import pandas as pd
+                updated_df = pd.concat([existing_data, pd.DataFrame(new_row)], ignore_index=True)
+                conn.update(worksheet="工作表1", data=updated_df)
                 
                 st.session_state.uploaded = True
                 st.success("✅ 太棒了！本次成績已經成功寫入「披薩考核成績紀錄」試算表中！")
                 
             except Exception as e:
-                st.error(f"❌ 上傳失敗。請稍後再試，或檢查 Secrets 設定檔是否有誤。詳細錯誤：{e}")
+                st.error(f"❌ 上傳失敗。詳細錯誤：{e}")
     else:
         st.success("✅ 本次成績已成功保存在試算表中。")
 
@@ -362,7 +318,6 @@ else:
     for idx, res in enumerate(st.session_state.results, 1):
         status_icon = "✅" if res["fully_correct"] else "❌"
         with st.expander(f"{status_icon} 第 {idx} 題：{res['item']} (⏱️ 耗時 {res['time_spent']} 秒)"):
-            
             u_sauce = res['sauce_user'] if res['sauce_user'] != "(請選擇)" else "(未選底醬)"
             if not res["sauce_ok"]:
                 st.write(f"❌ 底醬選擇：`{u_sauce}` ｜ 正確答案：`{res['sauce_ans']}`")
@@ -374,7 +329,7 @@ else:
                 ans_str = f"{e['n']} {e['g']}g" if e['q'] == "克數填寫(g)" else f"{e['n']} {e['q']}"
                 u_n = u['n'] if u['n'] != "(請選擇)" else "(未選配料)"
                 u_q = u['q'] if u['q'] != "(請選擇)" else "(未選份量)"
-                user_str = f"{u_n} {u['g']}" if u['q'] == "克數填寫(g)" else f"{u_n} {u_q}"
+                user_str = f"{u_n} {u['g']}" if e['q'] == "克數填寫(g)" else f"{u_n} {u_q}"
                 
                 if e["q"] == "克數填寫(g)":
                     user_g_clean = re.sub(r'\D', '', u["g"])
@@ -397,9 +352,9 @@ else:
         st.session_state.uploaded = False
         st.rerun()
 
-# --- 頁尾版權宣告 ---
 st.markdown("<br><br>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: center; color: gray; font-size: 14px;'>© 版權歸必勝客所有</p>", unsafe_allow_html=True)
+
 
 
 
