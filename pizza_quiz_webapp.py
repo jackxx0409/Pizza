@@ -304,7 +304,7 @@ else:
                 details_summary = " ｜ ".join(details_list)
                 
                 # 正確的 Apps Script 網址
-                apps_script_url = "https://script.google.com/macros/s/AKfycbyxx8nE-XCv_5XT7LW11qjjedTwRm_A8ZYBJVe9DsFOFJ2YLowsFl1X5O09AG6IyRmJS/exec"
+                apps_script_url = "https://script.google.com/macros/s/AKfycbxx8nE-XCv_5XT7LW11qjjeDtWrM_A8ZYBJVe9DsFOFJ2YLOwsFl1X5O09AG6IyRmjS/exec"
                 
                 payload = {
                     "time": current_time,
