@@ -113,65 +113,108 @@ if "uploaded" not in st.session_state:
     st.session_state.uploaded = False
 if "retry_mode" not in st.session_state:
     st.session_state.retry_mode = False
+if "level_name" not in st.session_state:
+    st.session_state.level_name = ""
 
 st.title("🍕 食材配方考核系統")
 
-# 1. 測驗未開始
-if not st.session_state.started:
-    st.markdown("### 📋 測驗設定")
-    staff_name_input = st.text_input("👤 請輸入您的大名 (必填)：", value=st.session_state.staff_name)
-    num_q = st.slider("🎯 抽考題數：", min_value=3, max_value=len(RECIPES), value=5)
-    
-    if st.button("🚀 開始測驗", type="primary"):
-        if not staff_name_input.strip():
-            st.error("❌ 提醒：請先輸入姓名才能開始測驗喔！")
+# 共用函式：產生題目清單
+def generate_questions(num_q):
+    shuffled = RECIPES.copy()
+    random.shuffle(shuffled)
+    selected_questions = []
+    for recipe in shuffled[:num_q]:
+        no_thin_old_list = ["松露干貝鮮蝦起司", "千島海鮮盛宴", "法式海陸盛宴"]
+        if recipe["name"] in no_thin_old_list:
+            available_crusts = ["大厚", "大芝心", "大火山", "大歐火"]
         else:
-            st.session_state.staff_name = staff_name_input.strip()
-            st.session_state.started = True
-            st.session_state.current_q = 0
-            st.session_state.score = 0
-            st.session_state.results = []
-            st.session_state.uploaded = False
-            st.session_state.retry_mode = False
+            available_crusts = CRUST_OPTIONS
             
-            shuffled = RECIPES.copy()
-            random.shuffle(shuffled)
+        crust = random.choice(available_crusts)
+        sauce = recipe["sauce"]
+        ings = [dict(item) for item in recipe["ingredients"]]
+        
+        if crust in ["大火山", "大歐火"]:
+            if not any(keyword in sauce for keyword in ["杓", "勺", "匙"]):
+                if sauce == "洋釀淋醬 Z字交叉來回7次":
+                    sauce = "洋釀淋醬 2圈"
+            for ing in ings:
+                if ing["n"] in ["明太子醬", "牛肝菌菇醬"]:
+                    ing["q"] = "2圈"
+        
+        if crust == "大舊" and ings and ings[0]["n"] == "起司":
+            first_cheese = ings.pop(0)
+            ings.append(first_cheese)
             
-            selected_questions = []
-            for recipe in shuffled[:num_q]:
-                no_thin_old_list = ["松露干貝鮮蝦起司", "千島海鮮盛宴", "法式海陸盛宴"]
-                if recipe["name"] in no_thin_old_list:
-                    available_crusts = ["大厚", "大芝心", "大火山", "大歐火"]
-                else:
-                    available_crusts = CRUST_OPTIONS
-                    
-                crust = random.choice(available_crusts)
-                sauce = recipe["sauce"]
-                ings = [dict(item) for item in recipe["ingredients"]]
+        selected_questions.append({
+            "name": f"{crust} - {recipe['name']}",
+            "crust": crust,
+            "sauce": sauce,
+            "ingredients": ings,
+            "base_recipe_name": recipe["name"]
+        })
+    return selected_questions
+
+# 1. 測驗未開始（設定頁面與身份選擇按鈕）
+if not st.session_state.started:
+    st.markdown("### 📋 測驗設定與身份選擇")
+    staff_name_input = st.text_input("👤 請輸入您的大名 (必填)：", value=st.session_state.staff_name)
+    
+    st.markdown("---")
+    st.markdown("#### 🛡️ 請選擇您的資歷級別開始挑戰：")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        if st.button("🌱 新人\n(剛入職場)", use_container_width=True):
+            if not staff_name_input.strip():
+                st.error("❌ 請先輸入姓名！")
+            else:
+                st.session_state.staff_name = staff_name_input.strip()
+                st.session_state.level_name = "🌱 新人 (3題)"
+                st.session_state.started = True
+                st.session_state.current_q = 0
+                st.session_state.score = 0
+                st.session_state.results = []
+                st.session_state.uploaded = False
+                st.session_state.retry_mode = False
+                st.session_state.questions = generate_questions(3) # 新人考3題
+                st.session_state.q_start_time = time.time()
+                st.rerun()
                 
-                if crust in ["大火山", "大歐火"]:
-                    if not any(keyword in sauce for keyword in ["杓", "勺", "匙"]):
-                        if sauce == "洋釀淋醬 Z字交叉來回7次":
-                            sauce = "洋釀淋醬 2圈"
-                    for ing in ings:
-                        if ing["n"] in ["明太子醬", "牛肝菌菇醬"]:
-                            ing["q"] = "2圈"
+    with col2:
+        if st.button("🧑 普通人\n(入職場)", use_container_width=True):
+            if not staff_name_input.strip():
+                st.error("❌ 請先輸入姓名！")
+            else:
+                st.session_state.staff_name = staff_name_input.strip()
+                st.session_state.level_name = "🧑 普通人 (5題)"
+                st.session_state.started = True
+                st.session_state.current_q = 0
+                st.session_state.score = 0
+                st.session_state.results = []
+                st.session_state.uploaded = False
+                st.session_state.retry_mode = False
+                st.session_state.questions = generate_questions(5) # 普通人考5題
+                st.session_state.q_start_time = time.time()
+                st.rerun()
                 
-                if crust == "大舊" and ings and ings[0]["n"] == "起司":
-                    first_cheese = ings.pop(0)
-                    ings.append(first_cheese)
-                    
-                selected_questions.append({
-                    "name": f"{crust} - {recipe['name']}",
-                    "crust": crust,
-                    "sauce": sauce,
-                    "ingredients": ings,
-                    "base_recipe_name": recipe["name"]
-                })
-                
-            st.session_state.questions = selected_questions
-            st.session_state.q_start_time = time.time()
-            st.rerun()
+    with col3:
+        if st.button("🔥 究極老油條\n(職場多年)", use_container_width=True):
+            if not staff_name_input.strip():
+                st.error("❌ 請先輸入姓名！")
+            else:
+                st.session_state.staff_name = staff_name_input.strip()
+                st.session_state.level_name = "🔥 究極老油條 (10題)"
+                st.session_state.started = True
+                st.session_state.current_q = 0
+                st.session_state.score = 0
+                st.session_state.results = []
+                st.session_state.uploaded = False
+                st.session_state.retry_mode = False
+                st.session_state.questions = generate_questions(10) # 老油條考10題
+                st.session_state.q_start_time = time.time()
+                st.rerun()
 
 # 2. 測驗進行中
 elif st.session_state.current_q < len(st.session_state.questions):
@@ -179,7 +222,7 @@ elif st.session_state.current_q < len(st.session_state.questions):
     curr_idx = st.session_state.current_q
     q_data = st.session_state.questions[curr_idx]
     
-    mode_text = "🔄 【錯題加深練習】" if st.session_state.retry_mode else f"進度：第 {curr_idx + 1} / {total_q} 題"
+    mode_text = "🔄 【錯題加深練習】" if st.session_state.retry_mode else f"級別：{st.session_state.level_name} ｜ 進度：第 {curr_idx + 1} / {total_q} 題"
     st.progress((curr_idx) / total_q, text=f"{mode_text} (受測者：{st.session_state.staff_name})")
     st.subheader(f"第 {curr_idx + 1} 題：【{q_data['name']}】")
     
@@ -278,7 +321,7 @@ else:
     percentage = int((score / total_q) * 100)
     
     st.balloons()
-    st.success(f"🎉 測驗完成！辛苦了，{st.session_state.staff_name}！")
+    st.success(f"🎉 測驗完成！辛苦了，{st.session_state.staff_name}（{st.session_state.level_name}）！")
     st.metric(label="最終得分", value=f"{score} / {total_q} 題", delta=f"正確率 {percentage}%")
     
     if percentage == 100:
@@ -301,14 +344,14 @@ else:
                 for idx, res in enumerate(st.session_state.results, 1):
                     status = "【O】" if res["fully_correct"] else "【X】"
                     details_list.append(f"Q{idx}:{res['item']}{status}")
-                details_summary = " ｜ ".join(details_list)
+                details_summary = f"[{st.session_state.level_name}] " + " ｜ ".join(details_list)
                 
-                # 正確的 Apps Script 網址
+                # 你的 Apps Script 網址
                 apps_script_url = "https://script.google.com/macros/s/AKfycbxx8nE-XCv_5XT7LW11qjjeDtWrM_A8ZYBJVe9DsFOFJ2YLOwsFl1X5O09AG6IyRmjS/exec"
                 
                 payload = {
                     "time": current_time,
-                    "name": st.session_state.staff_name,
+                    "name": f"{st.session_state.staff_name} ({st.session_state.level_name})",
                     "total": total_q,
                     "score": score,
                     "percentage": f"{percentage}%",
@@ -411,7 +454,7 @@ else:
                 else:
                     st.write(f"  - ❌ 您的答案：`{user_str}` ｜ 正確答案：`{ans_str}`")
 
-    if st.button("🔄 重新開始測驗 (完整新局)"):
+    if st.button("🔄 重新選擇級別與測驗"):
         st.session_state.started = False
         st.session_state.current_q = 0
         st.session_state.score = 0
