@@ -3,6 +3,7 @@ import random
 import re
 import time
 from datetime import datetime
+import pandas as pd
 
 # 設定網頁標題與圖示
 st.set_page_config(page_title="食材配方考核系統", page_icon="🍕", layout="centered")
@@ -284,25 +285,22 @@ else:
     if not st.session_state.uploaded:
         with st.spinner("正在自動將成績上傳至雲端試算表..."):
             try:
-                # 使用 Streamlit 內建連線功能寫入 Google 試算表（不需要額外裝 gspread）
-                conn = st.connection("gsheets", type="streamlit-gsheets.GSheetsConnection")
+                conn = st.connection("gsheets", type="gsheets")
                 
                 current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 total_time = sum([r["time_spent"] for r in st.session_state.results])
                 
-                new_row = [{
+                new_row = pd.DataFrame([{
                     "測驗時間": current_time,
                     "員工姓名": st.session_state.staff_name,
                     "測驗題數": total_q,
                     "正確題數": score,
                     "正確率": f"{percentage}%",
                     "總耗時(秒)": round(total_time, 1)
-                }]
+                }])
                 
-                # 讀取現有資料並加上新的一行
-                existing_data = conn.read(worksheet="工作表1", usecols=[0, 1, 2, 3, 4, 5], ttl=0)
-                import pandas as pd
-                updated_df = pd.concat([existing_data, pd.DataFrame(new_row)], ignore_index=True)
+                existing_data = conn.read(worksheet="工作表1", ttl=0)
+                updated_df = pd.concat([existing_data, new_row], ignore_index=True)
                 conn.update(worksheet="工作表1", data=updated_df)
                 
                 st.session_state.uploaded = True
@@ -354,9 +352,6 @@ else:
 
 st.markdown("<br><br>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: center; color: gray; font-size: 14px;'>© 版權歸必勝客所有</p>", unsafe_allow_html=True)
-
-
-
 
 
 
