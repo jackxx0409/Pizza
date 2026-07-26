@@ -54,7 +54,7 @@ RECIPES = [
         {"n": "起司", "q": "1", "g": ""}, {"n": "洋蔥", "q": "1/2", "g": ""}, {"n": "青椒", "q": "1/2", "g": ""}, {"n": "甜不辣", "q": "1/2", "g": ""}, {"n": "章魚", "q": "1", "g": ""}, {"n": "起司", "q": "1", "g": ""}
     ]},
     {"name": "經典海鮮四重奏", "sauce": "Pizza Sauce 1平杓", "ingredients": [
-        {"n": "起司", "q": "1", "g": ""}, {"n": "蟹肉絲", "q": "2", "g": ""}, {"n": "花枝條", "q": "1/2", "g": ""}, {"n": "小蝦", "q": "1/2", "g": ""}, {"n": "蛤蜊肉", "q": "1/2", "g": ""}, {"n": "番茄", "q": "1/2", "g": ""}, {"n": "起司", "q": "1", "g": ""}
+        {"n": "起司", "q": "1/2", "g": ""}, {"n": "蟹肉絲", "q": "2", "g": ""}, {"n": "花枝條", "q": "1/2", "g": ""}, {"n": "小蝦", "q": "1/2", "g": ""}, {"n": "蛤蜊肉", "q": "1/2", "g": ""}, {"n": "番茄", "q": "1/2", "g": ""}, {"n": "起司", "q": "1", "g": ""}
     ]},
     {"name": "法式海陸盛宴", "sauce": "卡菲底醬 小藍杓*1平杓", "ingredients": [
         {"n": "起司", "q": "1/2", "g": ""}, {"n": "洋蔥", "q": "1/2", "g": ""}, {"n": "韓國烤肉餡", "q": "1(外1圈)", "g": ""}, {"n": "鱈魚片", "q": "5", "g": ""}, {"n": "大蝦仁", "q": "5", "g": ""}, {"n": "番茄", "q": "1/2", "g": ""}, {"n": "花枝調味粉", "q": "均勻分灑", "g": ""}, {"n": "起司", "q": "1/2", "g": ""}
@@ -114,12 +114,12 @@ st.title("🍕 食材配方考核系統")
 # 1. 測驗未開始
 if not st.session_state.started:
     st.markdown("### 📋 測驗設定")
-    staff_name_input = st.text_input("👤 請輸入員工姓名 (必填)：", value=st.session_state.staff_name)
+    staff_name_input = st.text_input("👤 請輸入您的大名 (必填)：", value=st.session_state.staff_name)
     num_q = st.slider("🎯 抽考題數：", min_value=3, max_value=len(RECIPES), value=5)
     
     if st.button("🚀 開始測驗", type="primary"):
         if not staff_name_input.strip():
-            st.error("❌ 提醒：請先輸入員工姓名才能開始測驗喔！")
+            st.error("❌ 提醒：請先輸入姓名才能開始測驗喔！")
         else:
             st.session_state.staff_name = staff_name_input.strip()
             st.session_state.started = True
