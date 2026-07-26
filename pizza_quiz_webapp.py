@@ -166,7 +166,7 @@ if not st.session_state.started:
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        if st.button("🌱 新人\n(剛入職場)", use_container_width=True):
+        if st.button("🌱 新人", use_container_width=True):
             if not staff_name_input.strip():
                 st.error("❌ 請先輸入姓名！")
             else:
@@ -183,7 +183,7 @@ if not st.session_state.started:
                 st.rerun()
                 
     with col2:
-        if st.button("🧑 普通人\n(入職場)", use_container_width=True):
+        if st.button("🧑 普通人", use_container_width=True):
             if not staff_name_input.strip():
                 st.error("❌ 請先輸入姓名！")
             else:
@@ -200,7 +200,7 @@ if not st.session_state.started:
                 st.rerun()
                 
     with col3:
-        if st.button("🔥 究極老油條\n(職場多年)", use_container_width=True):
+        if st.button("🔥 究極老油條", use_container_width=True):
             if not staff_name_input.strip():
                 st.error("❌ 請先輸入姓名！")
             else:
