@@ -285,7 +285,7 @@ else:
         with st.spinner("正在自動將成績上傳至雲端試算表..."):
             try:
                 # 使用 Streamlit 內建連線功能寫入 Google 試算表（不需要額外裝 gspread）
-                conn = st.connection("gsheets", type="streamlit_gsheets.GSheetsConnection")
+                conn = st.connection("gsheets", type="streamlit-gsheets.GSheetsConnection")
                 
                 current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 total_time = sum([r["time_spent"] for r in st.session_state.results])
