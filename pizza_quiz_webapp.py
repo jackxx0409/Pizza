@@ -210,7 +210,7 @@ if not st.session_state.started:
     
     st.markdown("---")
     st.markdown("#### 🛡️ 請選擇您的挑戰級別：")
-    st.info("💡 嚴格模式開啟：需在正式測驗中**連續答對 3 次**才算精通。一旦答錯，累積次數將**歸零重算**！")
+    st.info("💡 嚴格模式開啟：要加油喔！")
     
     col1, col2, col3 = st.columns(3)
     
