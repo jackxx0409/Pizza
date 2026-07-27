@@ -7,6 +7,9 @@ import json
 import urllib.request
 import urllib.parse
 
+# 🔗 請確認這是你最新部署的 Google Apps Script 網址
+APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxx8nE-XCv_5XT7LW11qjjeDtWrM_A8ZYBJVe9DsFOFJ2YLOwsFl1X5O09AG6IyRmjS/exec"
+
 # 設定網頁標題與圖示
 st.set_page_config(page_title="食材配方考核系統", page_icon="🍕", layout="centered")
 
@@ -118,13 +121,57 @@ if "level_name" not in st.session_state:
 
 st.title("🍕 食材配方考核系統")
 
-# 共用函式：產生題目清單
-def generate_questions(num_q):
+# 🧠 智能選題演算法：連續答對 3 次算精通，一旦答錯直接歸零
+def get_smart_questions(num_q, staff_name):
     num_q = min(num_q, len(RECIPES))
-    shuffled = RECIPES.copy()
-    random.shuffle(shuffled)
+    correct_counts = {r['name']: 0 for r in RECIPES}
+    
+    # 嘗試從 Google 試算表讀取該員工的歷史紀錄
+    try:
+        req = urllib.request.Request(APPS_SCRIPT_URL, method="GET")
+        with urllib.request.urlopen(req, timeout=5) as response:
+            data = json.loads(response.read().decode("utf-8"))
+            
+        for row in data[1:]:  # 跳過表頭
+            if len(row) >= 7:
+                row_name = str(row[1])
+                details = str(row[6])
+                
+                # 比對是否為該員工
+                if staff_name in row_name:
+                    # 排除錯題加深練習 (不計入精通次數)
+                    if "錯題加深練習" in row_name or "錯題加深練習" in details or "錯題練習" in row_name or "錯題練習" in details:
+                        continue
+                    
+                    # 分析正式測驗的每一題明細
+                    for r in RECIPES:
+                        # ⚠️ 如果這題答對了，連對次數 +1
+                        if f"{r['name']}【O】" in details:
+                            correct_counts[r['name']] += 1
+                        # ⚠️ 關鍵懲罰機制：如果這題答錯了，連對次數直接無情歸零！
+                        elif f"{r['name']}【X】" in details:
+                            correct_counts[r['name']] = 0
+    except Exception as e:
+        print(f"無法讀取歷史紀錄，將採用純隨機出題: {e}")
+        pass
+
+    # 分類：正式測驗連續答對滿 3 次才算精通
+    unmastered = [r for r in RECIPES if correct_counts[r['name']] < 3]
+    mastered = [r for r in RECIPES if correct_counts[r['name']] >= 3]
+    
+    random.shuffle(unmastered)
+    random.shuffle(mastered)
+    
+    # 優先從未精通（連對少於3次）的品項中挑選
+    if len(unmastered) >= num_q:
+        selected_recipes = unmastered[:num_q]
+    else:
+        selected_recipes = unmastered + mastered[:num_q - len(unmastered)]
+        
+    random.shuffle(selected_recipes)
+    
     selected_questions = []
-    for recipe in shuffled[:num_q]:
+    for recipe in selected_recipes:
         no_thin_old_list = ["松露干貝鮮蝦起司", "千島海鮮盛宴", "法式海陸盛宴"]
         if recipe["name"] in no_thin_old_list:
             available_crusts = ["大厚", "大芝心", "大火山", "大歐火"]
@@ -156,13 +203,14 @@ def generate_questions(num_q):
         })
     return selected_questions
 
-# 1. 測驗未開始
+# 1. 測驗未開始（設定頁面與身份選擇按鈕）
 if not st.session_state.started:
     st.markdown("### 📋 測驗設定與資歷選擇")
     staff_name_input = st.text_input("👤 請輸入您的大名 (必填)：", value=st.session_state.staff_name)
     
     st.markdown("---")
     st.markdown("#### 🛡️ 請選擇您的挑戰級別：")
+    st.info("💡 嚴格模式開啟：需在正式測驗中**連續答對 3 次**才算精通。一旦答錯，累積次數將**歸零重算**！")
     
     col1, col2, col3 = st.columns(3)
     
@@ -171,16 +219,17 @@ if not st.session_state.started:
             if not staff_name_input.strip():
                 st.error("❌ 請先輸入姓名！")
             else:
-                st.session_state.staff_name = staff_name_input.strip()
-                st.session_state.level_name = "🌱 新人"
-                st.session_state.started = True
-                st.session_state.current_q = 0
-                st.session_state.score = 0
-                st.session_state.results = []
-                st.session_state.uploaded = False
-                st.session_state.retry_mode = False
-                st.session_state.questions = generate_questions(5)
-                st.session_state.q_start_time = time.time()
+                with st.spinner("🧠 正在讀取並分析您的正式答題紀錄..."):
+                    st.session_state.staff_name = staff_name_input.strip()
+                    st.session_state.level_name = "🌱 新人"
+                    st.session_state.started = True
+                    st.session_state.current_q = 0
+                    st.session_state.score = 0
+                    st.session_state.results = []
+                    st.session_state.uploaded = False
+                    st.session_state.retry_mode = False
+                    st.session_state.questions = get_smart_questions(5, st.session_state.staff_name) 
+                    st.session_state.q_start_time = time.time()
                 st.rerun()
                 
     with col2:
@@ -188,33 +237,35 @@ if not st.session_state.started:
             if not staff_name_input.strip():
                 st.error("❌ 請先輸入姓名！")
             else:
-                st.session_state.staff_name = staff_name_input.strip()
-                st.session_state.level_name = "🧑 普通人"
-                st.session_state.started = True
-                st.session_state.current_q = 0
-                st.session_state.score = 0
-                st.session_state.results = []
-                st.session_state.uploaded = False
-                st.session_state.retry_mode = False
-                st.session_state.questions = generate_questions(7)
-                st.session_state.q_start_time = time.time()
+                with st.spinner("🧠 正在讀取並分析您的正式答題紀錄..."):
+                    st.session_state.staff_name = staff_name_input.strip()
+                    st.session_state.level_name = "🧑 普通人"
+                    st.session_state.started = True
+                    st.session_state.current_q = 0
+                    st.session_state.score = 0
+                    st.session_state.results = []
+                    st.session_state.uploaded = False
+                    st.session_state.retry_mode = False
+                    st.session_state.questions = get_smart_questions(7, st.session_state.staff_name)
+                    st.session_state.q_start_time = time.time()
                 st.rerun()
                 
     with col3:
-        if st.button("🔥 究極老油條\n(12題大考驗！)", use_container_width=True):
+        if st.button("🔥 究極老油條\n(12題大考驗)", use_container_width=True):
             if not staff_name_input.strip():
                 st.error("❌ 請先輸入姓名！")
             else:
-                st.session_state.staff_name = staff_name_input.strip()
-                st.session_state.level_name = "🔥 究極老油條"
-                st.session_state.started = True
-                st.session_state.current_q = 0
-                st.session_state.score = 0
-                st.session_state.results = []
-                st.session_state.uploaded = False
-                st.session_state.retry_mode = False
-                st.session_state.questions = generate_questions(12)
-                st.session_state.q_start_time = time.time()
+                with st.spinner("🧠 正在讀取並分析您的正式答題紀錄..."):
+                    st.session_state.staff_name = staff_name_input.strip()
+                    st.session_state.level_name = "🔥 究極老油條"
+                    st.session_state.started = True
+                    st.session_state.current_q = 0
+                    st.session_state.score = 0
+                    st.session_state.results = []
+                    st.session_state.uploaded = False
+                    st.session_state.retry_mode = False
+                    st.session_state.questions = get_smart_questions(12, st.session_state.staff_name)
+                    st.session_state.q_start_time = time.time()
                 st.rerun()
 
 # 2. 測驗進行中
@@ -322,7 +373,8 @@ else:
     percentage = int((score / total_q) * 100)
     
     st.balloons()
-    st.success(f"🎉 測驗完成！辛苦了，{st.session_state.staff_name}（{st.session_state.level_name}）！")
+    title_suffix = "錯題加深練習" if st.session_state.retry_mode else st.session_state.level_name
+    st.success(f"🎉 測驗完成！辛苦了，{st.session_state.staff_name}（{title_suffix}）！")
     st.metric(label="最終得分", value=f"{score} / {total_q} 題", delta=f"正確率 {percentage}%")
     
     if percentage == 100:
@@ -345,11 +397,15 @@ else:
                 for idx, res in enumerate(st.session_state.results, 1):
                     status = "【O】" if res["fully_correct"] else "【X】"
                     details_list.append(f"Q{idx}:{res['item']}{status}")
-                details_summary = f"[{st.session_state.level_name}] " + " ｜ ".join(details_list)
                 
-                apps_script_url = "https://script.google.com/macros/s/AKfycbxx8nE-XCv_5XT7LW11qjjeDtWrM_A8ZYBJVe9DsFOFJ2YLOwsFl1X5O09AG6IyRmjS/exec"
-                
-                formatted_name = f"{st.session_state.staff_name} [{st.session_state.level_name}]"
+                if st.session_state.retry_mode:
+                    tag_str = "[錯題加深練習]"
+                    formatted_name = f"{st.session_state.staff_name} [錯題加深練習]"
+                else:
+                    tag_str = f"[{st.session_state.level_name}]"
+                    formatted_name = f"{st.session_state.staff_name} [{st.session_state.level_name}]"
+
+                details_summary = f"{tag_str} " + " ｜ ".join(details_list)
                 
                 payload = {
                     "time": current_time,
@@ -358,13 +414,12 @@ else:
                     "score": score,
                     "percentage": f"{percentage}%",
                     "duration": round(total_time, 1),
-                    "details": details_summary,
-                    "isRetry": st.session_state.retry_mode  # 傳遞是否為錯題練習的狀態
+                    "details": details_summary
                 }
                 
                 req_data = json.dumps(payload).encode("utf-8")
                 req = urllib.request.Request(
-                    apps_script_url, 
+                    APPS_SCRIPT_URL, 
                     data=req_data, 
                     headers={'Content-Type': 'application/json'}, 
                     method="POST"
@@ -382,7 +437,6 @@ else:
     else:
         st.success("✅ 本次成績與答題明細已成功保存在試算表中。")
 
-    # 檢查是否有錯題
     wrong_results = [r for r in st.session_state.results if not r["fully_correct"]]
     if wrong_results:
         st.markdown("---")
@@ -468,3 +522,4 @@ else:
 
 st.markdown("<br><br>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: center; color: gray; font-size: 14px;'>© 版權歸必勝客所有</p>", unsafe_allow_html=True)
+
