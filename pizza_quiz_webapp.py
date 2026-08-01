@@ -8,7 +8,7 @@ import urllib.request
 import urllib.parse
 
 # 🔗 請確認這是你最新部署的 Google Apps Script 網址
-APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyxx8nE-XCv_5XT7LW11qjjedTwRm_A8ZYBJVe9DsFOFJ2YLowsFl1X5O09AG6IyRmJS/exec"
+APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxx8nE-XCv_5XT7LW11qjjeDtWrM_A8ZYBJVe9DsFOFJ2YLOwsFl1X5O09AG6IyRmjS/exec"
 
 # 設定網頁標題與圖示
 st.set_page_config(page_title="食材配方考核系統", page_icon="🍕", layout="centered")
