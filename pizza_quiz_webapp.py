@@ -16,7 +16,7 @@ st.set_page_config(page_title="食材配方考核系統", page_icon="🍕", layo
 # 餅皮種類選項
 CRUST_OPTIONS = ["大厚", "大芝心", "大薄", "大舊", "大火山", "大歐火"]
 
-# 🎯 嶄新的連動式底醬選單對應表 (已根據截圖統一化)
+# 🎯 乾淨的連動式底醬選單對應表 (已統一說法)
 SAUCE_MAPPING = {
     "(請選擇)": ["(請選擇)"],
     "無": ["無"],
@@ -47,7 +47,7 @@ ALL_QUANTITIES = [
     "2圈", "克數填寫(g)"
 ]
 
-# 題庫資料 (已將底醬名稱更新對齊 SAUCE_MAPPING)
+# 題庫資料 (所有披薩皆已統一代換為新的標準底醬名稱)
 RECIPES = [
     {"name": "松露干貝鮮蝦起司", "sauce": "無", "ingredients": [
         {"n": "起司", "q": "1/2", "g": ""}, {"n": "洋蔥", "q": "1/2", "g": ""}, {"n": "菠菜", "q": "1/2", "g": ""}, {"n": "大蝦仁", "q": "10", "g": ""}, {"n": "干貝", "q": "10", "g": ""}, {"n": "魷魚圈", "q": "5", "g": ""}, {"n": "番茄", "q": "1/2", "g": ""}, {"n": "牛肝菌菇醬", "q": "橫直各5條", "g": ""}, {"n": "起司", "q": "1/2", "g": ""}
@@ -250,7 +250,7 @@ if not st.session_state.started:
     
     st.markdown("---")
     st.markdown("#### 🛡️ 請選擇您的挑戰級別：")
-    st.info("💡 智能出題：需在正式測驗中**連續答對 3 次**才算精通。一旦答錯，次數無情歸零！")
+    st.info("💡 智能出題：要加油喔！")
     
     col1, col2, col3 = st.columns(3)
     
@@ -359,7 +359,6 @@ elif st.session_state.current_q < len(st.session_state.questions):
             has_error = False
             error_messages = []
             
-            # 🎯 檢查連動選單是否有漏填
             if sauce_type_input == "(請選擇)":
                 has_error = True
                 error_messages.append("❌ 請選擇「底醬種類」！")
@@ -384,7 +383,7 @@ elif st.session_state.current_q < len(st.session_state.questions):
             else:
                 elapsed_time = round(time.time() - st.session_state.q_start_time, 1)
                 
-                # 🎯 組合使用者選取的醬料字串，用以比對題庫
+                # 🎯 組合使用者選取的醬料字串
                 if sauce_type_input == "無":
                     combined_sauce_user = "無"
                 elif sauce_type_input == "(請選擇)" or sauce_qty_input == "(請選擇)":
@@ -416,7 +415,7 @@ elif st.session_state.current_q < len(st.session_state.questions):
                     "item": q_data["name"],
                     "base_name": q_data.get("base_recipe_name", ""),
                     "crust": q_data["crust"],
-                    "sauce_user": combined_sauce_user,  # 記錄組合好的答案
+                    "sauce_user": combined_sauce_user, 
                     "sauce_ans": q_data["sauce"],
                     "sauce_ok": sauce_correct,
                     "ing_user": ing_inputs,
@@ -454,7 +453,7 @@ else:
             try:
                 current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 total_time = sum([r["time_spent"] for r in st.session_state.results])
-                client_info = get_client_info() # 取得裝備與 IP 資訊
+                client_info = get_client_info()
                 
                 details_list = []
                 for idx, res in enumerate(st.session_state.results, 1):
@@ -478,7 +477,7 @@ else:
                     "percentage": f"{percentage}%",
                     "duration": round(total_time, 1),
                     "details": details_summary,
-                    "client_info": client_info # 自動帶上裝備資訊
+                    "client_info": client_info 
                 }
                 
                 req_data = json.dumps(payload).encode("utf-8")
@@ -586,3 +585,4 @@ else:
 
 st.markdown("<br><br>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: center; color: gray; font-size: 14px;'>© 版權歸必勝客所有</p>", unsafe_allow_html=True)
+
