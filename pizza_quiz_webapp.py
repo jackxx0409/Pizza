@@ -250,7 +250,7 @@ if not st.session_state.started:
     
     st.markdown("---")
     st.markdown("#### 🛡️ 請選擇您的挑戰級別：")
-    st.info("💡 智能出題：需在正式測驗中**連續答對 3 次**才算精通。一旦答錯，次數無情歸零！")
+    st.info("💡 要加油喔！")
     
     col1, col2, col3 = st.columns(3)
     
