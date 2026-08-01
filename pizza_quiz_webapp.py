@@ -8,7 +8,7 @@ import urllib.request
 import urllib.parse
 
 # 🔗 請確認這是你最新部署的 Google Apps Script 網址
-APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxx8nE-XCv_5XT7LW11qjjeDtWrM_A8ZYBJVe9DsFOFJ2YLOwsFl1X5O09AG6IyRmjS/exec"
+APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyxx8nE-XCv_5XT7LW11qjjedTwRm_A8ZYBJVe9DsFOFJ2YLowsFl1X5O09AG6IyRmJS/exec"
 
 # 設定網頁標題與圖示
 st.set_page_config(page_title="食材配方考核系統", page_icon="🍕", layout="centered")
@@ -16,19 +16,18 @@ st.set_page_config(page_title="食材配方考核系統", page_icon="🍕", layo
 # 餅皮種類選項
 CRUST_OPTIONS = ["大厚", "大芝心", "大薄", "大舊", "大火山", "大歐火"]
 
-# 定義底醬選單
-ALL_SAUCES = [
-    "(請選擇)", 
-    "無", 
-    "Pizza Sauce 1平杓", 
-    "照燒醬 2平杓(專)", 
-    "千島醬 2滿杓(專)", 
-    "BBQ醬 15cc*1滿匙", 
-    "BBQ醬 15cc*3滿匙", 
-    "卡菲底醬 小藍杓*1平杓", 
-    "洋釀淋醬 Z字交叉來回7次",
-    "洋釀淋醬 2圈"
-]
+# 🎯 嶄新的連動式底醬選單對應表 (已根據截圖統一化)
+SAUCE_MAPPING = {
+    "(請選擇)": ["(請選擇)"],
+    "無": ["無"],
+    "Pizza Sauce": ["(請選擇)", "大紅杓*1平均"],
+    "照燒醬": ["(請選擇)", "2平杓(專)"],
+    "千島醬": ["(請選擇)", "2滿杓(專)"],
+    "BBQ醬": ["(請選擇)", "15cc*1滿匙", "15cc*2滿匙", "15cc*3滿匙"],
+    "卡菲底醬": ["(請選擇)", "小藍杓*1平杓"],
+    "蒜香清炒醬": ["(請選擇)", "大紅杓*1平均"],
+    "洋釀淋醬": ["(請選擇)", "Z字交叉來回7次", "2圈"]
+}
 
 # 定義食材選單
 ALL_INGREDIENTS = [
@@ -36,7 +35,7 @@ ALL_INGREDIENTS = [
     "起司",
     "洋蔥", "洋菇", "青椒", "菠菜", "番茄", "鳳梨", "韭菜", "三色絲", "韓國泡菜",
     "大蝦仁", "小蝦", "干貝", "魷魚圈", "章魚", "蛤蜊肉", "鱈魚片", "蟹肉絲", "1/2蟹風味棒", "花枝條",
-    "火腿", "培根", "PP", "午餐肉丁", "豬義混", "炭烤雞腿塊", "牛肉丸", "費城牛肉", "黑胡椒牛柳", "韓式燒牛肉", "韓式豬五花", "韓國烤肉餡", "甜不辣",
+    "火腿", "培根", "PP", "午餐肉丁", "豬義混", "炭烤雞腿塊", "牛肉丸", "費城牛肉", "黑胡椒牛柳", "韓式燒牛肉", "韓式豬五花", "韓國烤肉餡", "甜不辣", "燻雞絲",
     "明太子醬", "牛肝菌菇醬", "花枝調味粉"
 ]
 
@@ -48,7 +47,7 @@ ALL_QUANTITIES = [
     "2圈", "克數填寫(g)"
 ]
 
-# 題庫資料
+# 題庫資料 (已將底醬名稱更新對齊 SAUCE_MAPPING)
 RECIPES = [
     {"name": "松露干貝鮮蝦起司", "sauce": "無", "ingredients": [
         {"n": "起司", "q": "1/2", "g": ""}, {"n": "洋蔥", "q": "1/2", "g": ""}, {"n": "菠菜", "q": "1/2", "g": ""}, {"n": "大蝦仁", "q": "10", "g": ""}, {"n": "干貝", "q": "10", "g": ""}, {"n": "魷魚圈", "q": "5", "g": ""}, {"n": "番茄", "q": "1/2", "g": ""}, {"n": "牛肝菌菇醬", "q": "橫直各5條", "g": ""}, {"n": "起司", "q": "1/2", "g": ""}
@@ -59,7 +58,7 @@ RECIPES = [
     {"name": "和風章魚燒", "sauce": "照燒醬 2平杓(專)", "ingredients": [
         {"n": "起司", "q": "1", "g": ""}, {"n": "洋蔥", "q": "1/2", "g": ""}, {"n": "青椒", "q": "1/2", "g": ""}, {"n": "甜不辣", "q": "1/2", "g": ""}, {"n": "章魚", "q": "1", "g": ""}, {"n": "起司", "q": "1", "g": ""}
     ]},
-    {"name": "經典海鮮四重奏", "sauce": "Pizza Sauce 1平杓", "ingredients": [
+    {"name": "經典海鮮四重奏", "sauce": "Pizza Sauce 大紅杓*1平均", "ingredients": [
         {"n": "起司", "q": "1/2", "g": ""}, {"n": "蟹肉絲", "q": "2", "g": ""}, {"n": "花枝條", "q": "1/2", "g": ""}, {"n": "小蝦", "q": "1/2", "g": ""}, {"n": "蛤蜊肉", "q": "1/2", "g": ""}, {"n": "番茄", "q": "1/2", "g": ""}, {"n": "起司", "q": "1", "g": ""}
     ]},
     {"name": "法式海陸盛宴", "sauce": "卡菲底醬 小藍杓*1平杓", "ingredients": [
@@ -68,16 +67,16 @@ RECIPES = [
     {"name": "韓式泡菜豬五花", "sauce": "無", "ingredients": [
         {"n": "起司", "q": "1/2", "g": ""}, {"n": "韓國泡菜", "q": "1", "g": ""}, {"n": "起司", "q": "1", "g": ""}, {"n": "韓式豬五花", "q": "1+1/2", "g": ""}, {"n": "花枝調味粉", "q": "均勻分灑", "g": ""}
     ]},
-    {"name": "超級總匯", "sauce": "Pizza Sauce 1平杓", "ingredients": [
+    {"name": "超級總匯", "sauce": "Pizza Sauce 大紅杓*1平均", "ingredients": [
         {"n": "起司", "q": "1", "g": ""}, {"n": "PP", "q": "9", "g": ""}, {"n": "火腿", "q": "9", "g": ""}, {"n": "洋蔥", "q": "1/2", "g": ""}, {"n": "青椒", "q": "1/2", "g": ""}, {"n": "洋菇", "q": "1/2", "g": ""}, {"n": "豬義混", "q": "1", "g": ""}, {"n": "起司", "q": "1", "g": ""}
     ]},
-    {"name": "夏威夷", "sauce": "Pizza Sauce 1平杓", "ingredients": [
+    {"name": "夏威夷", "sauce": "Pizza Sauce 大紅杓*1平均", "ingredients": [
         {"n": "起司", "q": "1", "g": ""}, {"n": "火腿", "q": "26", "g": ""}, {"n": "鳳梨", "q": "1", "g": ""}, {"n": "起司", "q": "1", "g": ""}
     ]},
-    {"name": "超級夏威夷", "sauce": "Pizza Sauce 1平杓", "ingredients": [
+    {"name": "超級夏威夷", "sauce": "Pizza Sauce 大紅杓*1平均", "ingredients": [
         {"n": "起司", "q": "1/2", "g": ""}, {"n": "火腿", "q": "14+8", "g": ""}, {"n": "培根", "q": "10+2", "g": ""}, {"n": "午餐肉丁", "q": "1", "g": ""}, {"n": "鳳梨", "q": "1", "g": ""}, {"n": "起司", "q": "1", "g": ""}
     ]},
-    {"name": "雙層美式臘腸", "sauce": "Pizza Sauce 1平杓", "ingredients": [
+    {"name": "雙層美式臘腸", "sauce": "Pizza Sauce 大紅杓*1平均", "ingredients": [
         {"n": "起司", "q": "1", "g": ""}, {"n": "PP", "q": "16", "g": ""}, {"n": "起司", "q": "1", "g": ""}, {"n": "PP", "q": "16", "g": ""}, {"n": "起司", "q": "1/2", "g": ""}
     ]},
     {"name": "經典費城起司牛肉", "sauce": "無", "ingredients": [
@@ -94,6 +93,33 @@ RECIPES = [
     ]},
     {"name": "彩蔬鮮菇", "sauce": "BBQ醬 15cc*3滿匙", "ingredients": [
         {"n": "起司", "q": "1", "g": ""}, {"n": "洋菇", "q": "1", "g": ""}, {"n": "菠菜", "q": "1", "g": ""}, {"n": "番茄", "q": "1/2", "g": ""}, {"n": "起司", "q": "1", "g": ""}
+    ]},
+    {"name": "日式照燒雞", "sauce": "照燒醬 2平杓(專)", "ingredients": [
+        {"n": "洋蔥", "q": "1/2", "g": ""},
+        {"n": "洋菇", "q": "1/2", "g": ""},
+        {"n": "燻雞絲", "q": "1+1/2", "g": ""},
+        {"n": "番茄", "q": "1/2", "g": ""},
+        {"n": "起司", "q": "1", "g": ""}
+    ]},
+    {"name": "熱帶鳳梨海鮮", "sauce": "Pizza Sauce 大紅杓*1平均", "ingredients": [
+        {"n": "蟹肉絲", "q": "1", "g": ""},
+        {"n": "洋蔥", "q": "1/2", "g": ""},
+        {"n": "小蝦", "q": "1/2", "g": ""},
+        {"n": "鳳梨", "q": "1/2", "g": ""},
+        {"n": "起司", "q": "1", "g": ""}
+    ]},
+    {"name": "香濃蒜香海鮮", "sauce": "蒜香清炒醬 大紅杓*1平均", "ingredients": [
+        {"n": "蟹肉絲", "q": "1", "g": ""},
+        {"n": "洋菇", "q": "1/2", "g": ""},
+        {"n": "菠菜", "q": "1/2", "g": ""},
+        {"n": "蛤蜊肉", "q": "1/2", "g": ""},
+        {"n": "起司", "q": "1", "g": ""}
+    ]},
+    {"name": "炙燒豬肉總匯", "sauce": "BBQ醬 15cc*2滿匙", "ingredients": [
+        {"n": "洋菇", "q": "1/2", "g": ""},
+        {"n": "三色絲", "q": "1", "g": ""},
+        {"n": "豬義混", "q": "1", "g": ""},
+        {"n": "起司", "q": "1", "g": ""}
     ]}
 ]
 
@@ -119,50 +145,40 @@ if "retry_mode" not in st.session_state:
 if "level_name" not in st.session_state:
     st.session_state.level_name = ""
 
-st.title("🍕 食材配方考核系統")
-
-# 🧠 智能選題演算法：連續答對 3 次算精通，一旦答錯直接歸零
+# 🧠 智能選題演算法：連續答對 3 次算精通，答錯歸零
 def get_smart_questions(num_q, staff_name):
     num_q = min(num_q, len(RECIPES))
     correct_counts = {r['name']: 0 for r in RECIPES}
     
-    # 嘗試從 Google 試算表讀取該員工的歷史紀錄
     try:
         req = urllib.request.Request(APPS_SCRIPT_URL, method="GET")
         with urllib.request.urlopen(req, timeout=5) as response:
             data = json.loads(response.read().decode("utf-8"))
             
-        for row in data[1:]:  # 跳過表頭
+        for row in data[1:]:
             if len(row) >= 7:
                 row_name = str(row[1])
                 details = str(row[6])
                 
-                # 比對是否為該員工
                 if staff_name in row_name:
-                    # 排除錯題加深練習 (不計入精通次數)
                     if "錯題加深練習" in row_name or "錯題加深練習" in details or "錯題練習" in row_name or "錯題練習" in details:
                         continue
                     
-                    # 分析正式測驗的每一題明細
                     for r in RECIPES:
-                        # ⚠️ 如果這題答對了，連對次數 +1
                         if f"{r['name']}【O】" in details:
                             correct_counts[r['name']] += 1
-                        # ⚠️ 關鍵懲罰機制：如果這題答錯了，連對次數直接無情歸零！
                         elif f"{r['name']}【X】" in details:
                             correct_counts[r['name']] = 0
     except Exception as e:
         print(f"無法讀取歷史紀錄，將採用純隨機出題: {e}")
         pass
 
-    # 分類：正式測驗連續答對滿 3 次才算精通
     unmastered = [r for r in RECIPES if correct_counts[r['name']] < 3]
     mastered = [r for r in RECIPES if correct_counts[r['name']] >= 3]
     
     random.shuffle(unmastered)
     random.shuffle(mastered)
     
-    # 優先從未精通（連對少於3次）的品項中挑選
     if len(unmastered) >= num_q:
         selected_recipes = unmastered[:num_q]
     else:
@@ -203,14 +219,38 @@ def get_smart_questions(num_q, staff_name):
         })
     return selected_questions
 
-# 1. 測驗未開始（設定頁面與身份選擇按鈕）
+# 🔍 抓取連線裝置/IP 資訊
+def get_client_info():
+    try:
+        headers = st.context.headers
+        client_ip = headers.get("X-Forwarded-For", "未知IP").split(",")[0].strip()
+        user_agent = headers.get("User-Agent", "")
+        
+        if "iPhone" in user_agent:
+            device = "iPhone"
+        elif "iPad" in user_agent:
+            device = "iPad"
+        elif "Android" in user_agent:
+            device = "Android"
+        elif "Macintosh" in user_agent:
+            device = "Mac"
+        elif "Windows" in user_agent:
+            device = "Windows PC"
+        else:
+            device = "其他裝置"
+            
+        return f"{client_ip} ({device})"
+    except Exception:
+        return "未知裝置"
+
+# 1. 測驗未開始
 if not st.session_state.started:
     st.markdown("### 📋 測驗設定與資歷選擇")
     staff_name_input = st.text_input("👤 請輸入您的大名 (必填)：", value=st.session_state.staff_name)
     
     st.markdown("---")
     st.markdown("#### 🛡️ 請選擇您的挑戰級別：")
-    st.info("💡 嚴格模式開啟：要加油喔！")
+    st.info("💡 智能出題：需在正式測驗中**連續答對 3 次**才算精通。一旦答錯，次數無情歸零！")
     
     col1, col2, col3 = st.columns(3)
     
@@ -279,9 +319,16 @@ elif st.session_state.current_q < len(st.session_state.questions):
     st.subheader(f"第 {curr_idx + 1} 題：【{q_data['name']}】")
     
     with st.form(key=f"q_form_{curr_idx}"):
-        st.write("1. 底醬與用量：")
-        sauce_input = st.selectbox("底醬選擇", ALL_SAUCES, key=f"sauce_{curr_idx}", label_visibility="collapsed")
+        st.write("1. 底醬種類與用量：")
         
+        # 🎯 雙重連動選單區塊
+        col_s1, col_s2 = st.columns(2)
+        with col_s1:
+            sauce_type_input = st.selectbox("底醬種類", list(SAUCE_MAPPING.keys()), key=f"sauce_type_{curr_idx}")
+        with col_s2:
+            sauce_qty_input = st.selectbox("底醬用量", SAUCE_MAPPING[sauce_type_input], key=f"sauce_qty_{curr_idx}")
+        
+        st.write("---")
         st.write("2. 請依序選擇鋪設配料與份量：")
         if q_data["crust"] == "大舊":
             st.warning("💡 提示：本題為「大舊」餅皮，請注意底層起司順序調整！")
@@ -311,9 +358,15 @@ elif st.session_state.current_q < len(st.session_state.questions):
         if submitted:
             has_error = False
             error_messages = []
-            if sauce_input == "(請選擇)":
+            
+            # 🎯 檢查連動選單是否有漏填
+            if sauce_type_input == "(請選擇)":
                 has_error = True
-                error_messages.append("❌ 請選擇「底醬與用量」！")
+                error_messages.append("❌ 請選擇「底醬種類」！")
+            elif sauce_type_input != "無" and sauce_qty_input == "(請選擇)":
+                has_error = True
+                error_messages.append("❌ 請選擇對應的「底醬用量」！")
+                
             for j, u in enumerate(ing_inputs, 1):
                 if u["n"] == "(請選擇)":
                     has_error = True
@@ -330,7 +383,16 @@ elif st.session_state.current_q < len(st.session_state.questions):
                     st.error(err)
             else:
                 elapsed_time = round(time.time() - st.session_state.q_start_time, 1)
-                sauce_correct = (sauce_input == q_data["sauce"])
+                
+                # 🎯 組合使用者選取的醬料字串，用以比對題庫
+                if sauce_type_input == "無":
+                    combined_sauce_user = "無"
+                elif sauce_type_input == "(請選擇)" or sauce_qty_input == "(請選擇)":
+                    combined_sauce_user = "(請選擇)"
+                else:
+                    combined_sauce_user = f"{sauce_type_input} {sauce_qty_input}"
+                
+                sauce_correct = (combined_sauce_user == q_data["sauce"])
                 
                 ing_correct_count = 0
                 for u, e in zip(ing_inputs, q_data["ingredients"]):
@@ -354,7 +416,7 @@ elif st.session_state.current_q < len(st.session_state.questions):
                     "item": q_data["name"],
                     "base_name": q_data.get("base_recipe_name", ""),
                     "crust": q_data["crust"],
-                    "sauce_user": sauce_input,
+                    "sauce_user": combined_sauce_user,  # 記錄組合好的答案
                     "sauce_ans": q_data["sauce"],
                     "sauce_ok": sauce_correct,
                     "ing_user": ing_inputs,
@@ -388,10 +450,11 @@ else:
     st.subheader("☁️ 成績與答題明細同步狀態")
     
     if not st.session_state.uploaded:
-        with st.spinner("正在自動將成績與答題明細寫入 Google 試算表..."):
+        with st.spinner("正在自動將成績、明細與裝置資訊寫入 Google 試算表..."):
             try:
                 current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 total_time = sum([r["time_spent"] for r in st.session_state.results])
+                client_info = get_client_info() # 取得裝備與 IP 資訊
                 
                 details_list = []
                 for idx, res in enumerate(st.session_state.results, 1):
@@ -414,7 +477,8 @@ else:
                     "score": score,
                     "percentage": f"{percentage}%",
                     "duration": round(total_time, 1),
-                    "details": details_summary
+                    "details": details_summary,
+                    "client_info": client_info # 自動帶上裝備資訊
                 }
                 
                 req_data = json.dumps(payload).encode("utf-8")
@@ -429,7 +493,7 @@ else:
                     res_body = response.read().decode("utf-8")
                     if "success" in res_body:
                         st.session_state.uploaded = True
-                        st.success("✅ 成績與詳細答題明細已成功寫入 Google 試算表中！")
+                        st.success(f"✅ 成績與明細已成功寫入！(系統自動側錄裝置：{client_info})")
                     else:
                         st.error("❌ 寫入失敗，請確認 Apps Script 是否設定正確。")
             except Exception as e:
@@ -487,9 +551,9 @@ else:
         with st.expander(f"{status_icon} 第 {idx} 題：{res['item']} (⏱️ 耗時 {res['time_spent']} 秒)"):
             u_sauce = res['sauce_user'] if res['sauce_user'] != "(請選擇)" else "(未選底醬)"
             if not res["sauce_ok"]:
-                st.write(f"❌ 底醬選擇：`{u_sauce}` ｜ 正確答案：`{res['sauce_ans']}`")
+                st.write(f"❌ 底醬與用量：`{u_sauce}` ｜ 正確答案：`{res['sauce_ans']}`")
             else:
-                st.write(f"✅ 底醬選擇：`{u_sauce}`")
+                st.write(f"✅ 底醬與用量：`{u_sauce}`")
                 
             st.write("**配料比對：**")
             for u, e in zip(res["ing_user"], res["ing_ans"]):
@@ -522,4 +586,3 @@ else:
 
 st.markdown("<br><br>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: center; color: gray; font-size: 14px;'>© 版權歸必勝客所有</p>", unsafe_allow_html=True)
-
