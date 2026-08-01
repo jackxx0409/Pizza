@@ -250,7 +250,7 @@ if not st.session_state.started:
     
     st.markdown("---")
     st.markdown("#### 🛡️ 請選擇您的挑戰級別：")
-    st.info("💡 智能出題：要加油喔！")
+    st.info("💡 智能出題：需在正式測驗中**連續答對 3 次**才算精通。一旦答錯，次數無情歸零！")
     
     col1, col2, col3 = st.columns(3)
     
@@ -318,114 +318,114 @@ elif st.session_state.current_q < len(st.session_state.questions):
     st.progress((curr_idx) / total_q, text=f"{mode_text} (受測者：{st.session_state.staff_name})")
     st.subheader(f"第 {curr_idx + 1} 題：【{q_data['name']}】")
     
-    with st.form(key=f"q_form_{curr_idx}"):
-        st.write("1. 底醬種類與用量：")
+    # ⚠️ 這裡已經移除了 st.form 保護，實現下拉選單即時連動！
+    st.write("1. 底醬種類與用量：")
+    
+    col_s1, col_s2 = st.columns(2)
+    with col_s1:
+        sauce_type_input = st.selectbox("底醬種類", list(SAUCE_MAPPING.keys()), key=f"sauce_type_{curr_idx}")
+    with col_s2:
+        sauce_qty_input = st.selectbox("底醬用量", SAUCE_MAPPING[sauce_type_input], key=f"sauce_qty_{curr_idx}")
+    
+    st.write("---")
+    st.write("2. 請依序選擇鋪設配料與份量：")
+    if q_data["crust"] == "大舊":
+        st.warning("💡 提示：本題為「大舊」餅皮，請注意底層起司順序調整！")
+    elif q_data["crust"] in ["大火山", "大歐火"]:
+        st.warning("💡 提示：本題為「大火山/大歐火」，非勺/匙計算之淋醬請改為 2 圈！")
+    else:
+        st.info("💡 提示：所有欄位皆為必填！")
+    
+    header_cols = st.columns([4, 4, 3])
+    header_cols[0].markdown("**配料名稱**")
+    header_cols[1].markdown("**份量單位**")
+    header_cols[2].markdown("**克數 (g)**")
+    
+    ing_inputs = []
+    for j in range(len(q_data["ingredients"])):
+        cols = st.columns([4, 4, 3])
+        with cols[0]:
+            sel_n = st.selectbox(f"配料 {j}", ALL_INGREDIENTS, key=f"ing_n_{curr_idx}_{j}", label_visibility="collapsed")
+        with cols[1]:
+            sel_q = st.selectbox(f"份量 {j}", ALL_QUANTITIES, key=f"ing_q_{curr_idx}_{j}", label_visibility="collapsed")
+        with cols[2]:
+            text_g = st.text_input(f"克數 {j}", key=f"ing_g_{curr_idx}_{j}", label_visibility="collapsed", placeholder="輸入數字")
+        ing_inputs.append({"n": sel_n, "q": sel_q, "g": text_g.strip()})
         
-        # 🎯 雙重連動選單區塊
-        col_s1, col_s2 = st.columns(2)
-        with col_s1:
-            sauce_type_input = st.selectbox("底醬種類", list(SAUCE_MAPPING.keys()), key=f"sauce_type_{curr_idx}")
-        with col_s2:
-            sauce_qty_input = st.selectbox("底醬用量", SAUCE_MAPPING[sauce_type_input], key=f"sauce_qty_{curr_idx}")
+    # ⚠️ 將原本的 st.form_submit_button 改為普通 st.button
+    submitted = st.button("提交本題答案", type="primary", key=f"submit_btn_{curr_idx}")
+    
+    if submitted:
+        has_error = False
+        error_messages = []
         
-        st.write("---")
-        st.write("2. 請依序選擇鋪設配料與份量：")
-        if q_data["crust"] == "大舊":
-            st.warning("💡 提示：本題為「大舊」餅皮，請注意底層起司順序調整！")
-        elif q_data["crust"] in ["大火山", "大歐火"]:
-            st.warning("💡 提示：本題為「大火山/大歐火」，非勺/匙計算之淋醬請改為 2 圈！")
+        if sauce_type_input == "(請選擇)":
+            has_error = True
+            error_messages.append("❌ 請選擇「底醬種類」！")
+        elif sauce_type_input != "無" and sauce_qty_input == "(請選擇)":
+            has_error = True
+            error_messages.append("❌ 請選擇對應的「底醬用量」！")
+            
+        for j, u in enumerate(ing_inputs, 1):
+            if u["n"] == "(請選擇)":
+                has_error = True
+                error_messages.append(f"❌ 第 {j} 項配料的「名稱」尚未選擇！")
+            if u["q"] == "(請選擇)":
+                has_error = True
+                error_messages.append(f"❌ 第 {j} 項配料的「份量單位」尚未選擇！")
+            if u["q"] == "克數填寫(g)" and not u["g"]:
+                has_error = True
+                error_messages.append(f"❌ 第 {j} 項配料選擇了克數填寫，但未輸入數字！")
+                
+        if has_error:
+            for err in error_messages:
+                st.error(err)
         else:
-            st.info("💡 提示：所有欄位皆為必填！")
-        
-        header_cols = st.columns([4, 4, 3])
-        header_cols[0].markdown("**配料名稱**")
-        header_cols[1].markdown("**份量單位**")
-        header_cols[2].markdown("**克數 (g)**")
-        
-        ing_inputs = []
-        for j in range(len(q_data["ingredients"])):
-            cols = st.columns([4, 4, 3])
-            with cols[0]:
-                sel_n = st.selectbox(f"配料 {j}", ALL_INGREDIENTS, key=f"ing_n_{curr_idx}_{j}", label_visibility="collapsed")
-            with cols[1]:
-                sel_q = st.selectbox(f"份量 {j}", ALL_QUANTITIES, key=f"ing_q_{curr_idx}_{j}", label_visibility="collapsed")
-            with cols[2]:
-                text_g = st.text_input(f"克數 {j}", key=f"ing_g_{curr_idx}_{j}", label_visibility="collapsed", placeholder="輸入數字")
-            ing_inputs.append({"n": sel_n, "q": sel_q, "g": text_g.strip()})
+            elapsed_time = round(time.time() - st.session_state.q_start_time, 1)
             
-        submitted = st.form_submit_button("提交本題答案", type="primary")
-        
-        if submitted:
-            has_error = False
-            error_messages = []
-            
-            if sauce_type_input == "(請選擇)":
-                has_error = True
-                error_messages.append("❌ 請選擇「底醬種類」！")
-            elif sauce_type_input != "無" and sauce_qty_input == "(請選擇)":
-                has_error = True
-                error_messages.append("❌ 請選擇對應的「底醬用量」！")
-                
-            for j, u in enumerate(ing_inputs, 1):
-                if u["n"] == "(請選擇)":
-                    has_error = True
-                    error_messages.append(f"❌ 第 {j} 項配料的「名稱」尚未選擇！")
-                if u["q"] == "(請選擇)":
-                    has_error = True
-                    error_messages.append(f"❌ 第 {j} 項配料的「份量單位」尚未選擇！")
-                if u["q"] == "克數填寫(g)" and not u["g"]:
-                    has_error = True
-                    error_messages.append(f"❌ 第 {j} 項配料選擇了克數填寫，但未輸入數字！")
-                    
-            if has_error:
-                for err in error_messages:
-                    st.error(err)
+            # 🎯 組合使用者選取的醬料字串
+            if sauce_type_input == "無":
+                combined_sauce_user = "無"
+            elif sauce_type_input == "(請選擇)" or sauce_qty_input == "(請選擇)":
+                combined_sauce_user = "(請選擇)"
             else:
-                elapsed_time = round(time.time() - st.session_state.q_start_time, 1)
-                
-                # 🎯 組合使用者選取的醬料字串
-                if sauce_type_input == "無":
-                    combined_sauce_user = "無"
-                elif sauce_type_input == "(請選擇)" or sauce_qty_input == "(請選擇)":
-                    combined_sauce_user = "(請選擇)"
+                combined_sauce_user = f"{sauce_type_input} {sauce_qty_input}"
+            
+            sauce_correct = (combined_sauce_user == q_data["sauce"])
+            
+            ing_correct_count = 0
+            for u, e in zip(ing_inputs, q_data["ingredients"]):
+                is_n_correct = (u["n"] == e["n"])
+                is_q_correct = (u["q"] == e["q"])
+                if e["q"] == "克數填寫(g)":
+                    user_g_clean = re.sub(r'\D', '', u["g"])
+                    is_g_correct = (user_g_clean == e["g"])
                 else:
-                    combined_sauce_user = f"{sauce_type_input} {sauce_qty_input}"
-                
-                sauce_correct = (combined_sauce_user == q_data["sauce"])
-                
-                ing_correct_count = 0
-                for u, e in zip(ing_inputs, q_data["ingredients"]):
-                    is_n_correct = (u["n"] == e["n"])
-                    is_q_correct = (u["q"] == e["q"])
-                    if e["q"] == "克數填寫(g)":
-                        user_g_clean = re.sub(r'\D', '', u["g"])
-                        is_g_correct = (user_g_clean == e["g"])
-                    else:
-                        is_g_correct = True
-                    if is_n_correct and is_q_correct and is_g_correct:
-                        ing_correct_count += 1
-                        
-                total_items = 1 + len(q_data["ingredients"])
-                got_items = (1 if sauce_correct else 0) + ing_correct_count
-                is_fully_correct = (got_items == total_items)
-                if is_fully_correct:
-                    st.session_state.score += 1
+                    is_g_correct = True
+                if is_n_correct and is_q_correct and is_g_correct:
+                    ing_correct_count += 1
                     
-                st.session_state.results.append({
-                    "item": q_data["name"],
-                    "base_name": q_data.get("base_recipe_name", ""),
-                    "crust": q_data["crust"],
-                    "sauce_user": combined_sauce_user, 
-                    "sauce_ans": q_data["sauce"],
-                    "sauce_ok": sauce_correct,
-                    "ing_user": ing_inputs,
-                    "ing_ans": q_data["ingredients"],
-                    "fully_correct": is_fully_correct,
-                    "time_spent": elapsed_time
-                })
-                st.session_state.current_q += 1
-                st.session_state.q_start_time = time.time()
-                st.rerun()
+            total_items = 1 + len(q_data["ingredients"])
+            got_items = (1 if sauce_correct else 0) + ing_correct_count
+            is_fully_correct = (got_items == total_items)
+            if is_fully_correct:
+                st.session_state.score += 1
+                
+            st.session_state.results.append({
+                "item": q_data["name"],
+                "base_name": q_data.get("base_recipe_name", ""),
+                "crust": q_data["crust"],
+                "sauce_user": combined_sauce_user, 
+                "sauce_ans": q_data["sauce"],
+                "sauce_ok": sauce_correct,
+                "ing_user": ing_inputs,
+                "ing_ans": q_data["ingredients"],
+                "fully_correct": is_fully_correct,
+                "time_spent": elapsed_time
+            })
+            st.session_state.current_q += 1
+            st.session_state.q_start_time = time.time()
+            st.rerun()
 
 # 3. 測驗完成結果頁面
 else:
@@ -585,4 +585,3 @@ else:
 
 st.markdown("<br><br>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: center; color: gray; font-size: 14px;'>© 版權歸必勝客所有</p>", unsafe_allow_html=True)
-
