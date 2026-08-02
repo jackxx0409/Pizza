@@ -170,7 +170,7 @@ def get_smart_questions(num_q, staff_name):
                         elif f"{r['name']}【X】" in details:
                             correct_counts[r['name']] = 0
     except Exception as e:
-        print(f"無法讀取歷史紀錄，將採用純隨機出題: {e}")
+        print(f"無法讀取歷史紀錄，即將採用純隨機出題: {e}")
         pass
 
     unmastered = [r for r in RECIPES if correct_counts[r['name']] < 3]
